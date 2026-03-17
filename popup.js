@@ -22,6 +22,8 @@ const calendarPrevMonthButton = document.getElementById("calendar-prev-month");
 const calendarNextMonthButton = document.getElementById("calendar-next-month");
 const calendarTodayButton = document.getElementById("calendar-today");
 const toastStack = document.getElementById("toast-stack");
+const splashOverlay = document.getElementById("splash-overlay");
+const mainUi = document.getElementById("main-ui");
 
 const now = new Date();
 
@@ -37,6 +39,7 @@ const uiState = {
 };
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const SPLASH_SEEN_KEY = "hacktrack_splash_seen_v1";
 
 function getHackathonKey(hackathon) {
   return hackathon.id || `${hackathon.name}::${hackathon.deadline}::${hackathon.createdAt || 0}`;
@@ -177,6 +180,33 @@ function showToast(message) {
       toast.remove();
     }, 190);
   }, 1700);
+}
+
+function runSplashScreen() {
+  if (!(splashOverlay instanceof HTMLElement) || !(mainUi instanceof HTMLElement)) {
+    return;
+  }
+
+  const hasSeenSplash = window.localStorage.getItem(SPLASH_SEEN_KEY) === "1";
+
+  if (hasSeenSplash) {
+    mainUi.classList.remove("splash-blur");
+    splashOverlay.remove();
+    return;
+  }
+
+  splashOverlay.classList.add("is-visible");
+
+  window.setTimeout(() => {
+    splashOverlay.classList.add("is-exit");
+    mainUi.classList.remove("splash-blur");
+  }, 650);
+
+  window.setTimeout(() => {
+    splashOverlay.remove();
+  }, 900);
+
+  window.localStorage.setItem(SPLASH_SEEN_KEY, "1");
 }
 
 function getNextUpcomingKey(hackathons) {
@@ -909,6 +939,7 @@ function startCountdownTicker() {
 }
 
 async function initializePopup() {
+  runSplashScreen();
   await Promise.all([loadData(), prefillHackathonNameFromTab()]);
   startCountdownTicker();
 }

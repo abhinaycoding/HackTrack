@@ -196,10 +196,95 @@
         font-size: 12px;
         color: rgba(156, 163, 175, 1);
       }
+
+      #main-ui {
+        transition: filter 0.28s ease, opacity 0.28s ease;
+      }
+
+      #main-ui.splash-blur {
+        filter: blur(3px);
+        opacity: 0.9;
+      }
+
+      .splash-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        background:
+          radial-gradient(circle at 10% 10%, rgba(129, 140, 248, 0.32), transparent 40%),
+          radial-gradient(circle at 88% 4%, rgba(168, 85, 247, 0.28), transparent 42%),
+          rgba(2, 6, 23, 0.72);
+        transition: opacity 0.26s ease;
+      }
+
+      .splash-overlay.is-visible {
+        opacity: 1;
+      }
+
+      .splash-overlay.is-exit {
+        opacity: 0;
+      }
+
+      .splash-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        transform: scale(0.94);
+        opacity: 0;
+      }
+
+      .splash-overlay.is-visible .splash-center {
+        animation: splash-enter 0.42s ease forwards;
+      }
+
+      .splash-logo {
+        height: 44px;
+        width: 44px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: linear-gradient(145deg, rgba(99, 102, 241, 0.6), rgba(139, 92, 246, 0.55));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.28);
+      }
+
+      .splash-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: rgba(238, 242, 255, 1);
+      }
+
+      .splash-sub {
+        margin: 0;
+        font-size: 11px;
+        color: rgba(191, 219, 254, 0.9);
+      }
+
+      @keyframes splash-enter {
+        0% {
+          transform: scale(0.94);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
     </style>
   </head>
   <body class="bg-gray-950 text-gray-100" style="width: 820px;">
-    <main class="relative overflow-hidden p-4">
+    <main id="main-ui" class="relative overflow-hidden p-4 splash-blur">
       <div class="pointer-events-none absolute -left-10 -top-12 h-44 w-44 rounded-full bg-indigo-500/20 blur-3xl"></div>
       <div class="pointer-events-none absolute right-0 top-4 h-40 w-40 rounded-full bg-fuchsia-500/20 blur-3xl"></div>
 
@@ -316,6 +401,14 @@
         </aside>
       </section>
     </main>
+
+    <div id="splash-overlay" class="splash-overlay" aria-hidden="true">
+      <div class="splash-center">
+        <div class="splash-logo">🚀</div>
+        <p class="splash-title">HackTrack</p>
+        <p class="splash-sub">Command center loading…</p>
+      </div>
+    </div>
 
     <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
 
