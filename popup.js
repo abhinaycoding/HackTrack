@@ -18,6 +18,11 @@ const calendarMonthLabel = document.getElementById("calendar-month-label");
 const miniCalendarGrid = document.getElementById("mini-calendar-grid");
 const calendarSelectedLabel = document.getElementById("calendar-selected-label");
 const calendarDayList = document.getElementById("calendar-day-list");
+const calendarPrevMonthButton = document.getElementById("calendar-prev-month");
+const calendarNextMonthButton = document.getElementById("calendar-next-month");
+const calendarTodayButton = document.getElementById("calendar-today");
+
+const now = new Date();
 
 const uiState = {
   filter: "all",
@@ -25,7 +30,9 @@ const uiState = {
   expandedId: null,
   countdownTimer: null,
   data: [],
-  selectedCalendarDate: null
+  selectedCalendarDate: null,
+  calendarViewYear: now.getFullYear(),
+  calendarViewMonthIndex: now.getMonth()
 };
 
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -75,14 +82,19 @@ function formatDateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
-function getCurrentMonthContext() {
-  const now = new Date();
+function getMonthContext(year, monthIndex) {
   return {
-    year: now.getFullYear(),
-    monthIndex: now.getMonth(),
-    daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-    firstWeekday: new Date(now.getFullYear(), now.getMonth(), 1).getDay()
+    year,
+    monthIndex,
+    daysInMonth: new Date(year, monthIndex + 1, 0).getDate(),
+    firstWeekday: new Date(year, monthIndex, 1).getDay()
   };
+}
+
+function shiftCalendarMonth(offset) {
+  const next = new Date(uiState.calendarViewYear, uiState.calendarViewMonthIndex + offset, 1);
+  uiState.calendarViewYear = next.getFullYear();
+  uiState.calendarViewMonthIndex = next.getMonth();
 }
 
 function getHackathonsByDate() {
@@ -438,7 +450,7 @@ function renderMiniCalendar() {
     return;
   }
 
-  const month = getCurrentMonthContext();
+  const month = getMonthContext(uiState.calendarViewYear, uiState.calendarViewMonthIndex);
   const byDate = getHackathonsByDate();
 
   calendarMonthLabel.textContent = new Date(month.year, month.monthIndex, 1).toLocaleDateString(undefined, {
@@ -609,6 +621,30 @@ if (miniCalendarGrid) {
     }
 
     uiState.selectedCalendarDate = dateButton.dataset.date || null;
+    renderMiniCalendar();
+  });
+}
+
+if (calendarPrevMonthButton) {
+  calendarPrevMonthButton.addEventListener("click", () => {
+    shiftCalendarMonth(-1);
+    renderMiniCalendar();
+  });
+}
+
+if (calendarNextMonthButton) {
+  calendarNextMonthButton.addEventListener("click", () => {
+    shiftCalendarMonth(1);
+    renderMiniCalendar();
+  });
+}
+
+if (calendarTodayButton) {
+  calendarTodayButton.addEventListener("click", () => {
+    const today = new Date();
+    uiState.calendarViewYear = today.getFullYear();
+    uiState.calendarViewMonthIndex = today.getMonth();
+    uiState.selectedCalendarDate = formatDateKey(today);
     renderMiniCalendar();
   });
 }

@@ -202,7 +202,12 @@
           <div class="glass rounded-2xl p-3">
             <div class="flex items-center justify-between">
               <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-400">Calendar</h3>
-              <span id="calendar-month-label" class="text-xs text-gray-300">-</span>
+              <div class="flex items-center gap-1">
+                <button id="calendar-prev-month" type="button" class="ui-button rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1 text-xs text-gray-200">‹</button>
+                <span id="calendar-month-label" class="min-w-[78px] text-center text-xs text-gray-300">-</span>
+                <button id="calendar-next-month" type="button" class="ui-button rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1 text-xs text-gray-200">›</button>
+                <button id="calendar-today" type="button" class="ui-button rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1 text-[10px] text-gray-300">Today</button>
+              </div>
             </div>
             <div id="calendar-weekdays" class="mini-calendar-grid mt-3 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400">
               <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
