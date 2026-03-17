@@ -21,6 +21,7 @@ const calendarDayList = document.getElementById("calendar-day-list");
 const calendarPrevMonthButton = document.getElementById("calendar-prev-month");
 const calendarNextMonthButton = document.getElementById("calendar-next-month");
 const calendarTodayButton = document.getElementById("calendar-today");
+const toastStack = document.getElementById("toast-stack");
 
 const now = new Date();
 
@@ -141,6 +142,58 @@ function getCountdown(deadline) {
   return { label, tone: "green" };
 }
 
+function getStatus(deadline) {
+  const hours = getDiffHours(deadline);
+  if (hours === null) {
+    return { label: "Upcoming", className: "status-pill status-upcoming" };
+  }
+
+  if (hours <= 0) {
+    return { label: "Missed", className: "status-pill status-missed" };
+  }
+
+  if (hours < 24) {
+    return { label: "Urgent", className: "status-pill status-urgent" };
+  }
+
+  return { label: "Upcoming", className: "status-pill status-upcoming" };
+}
+
+function showToast(message) {
+  if (!toastStack) {
+    return;
+  }
+
+  const toast = document.createElement("div");
+  toast.className = "toast-item";
+  toast.textContent = message;
+  toastStack.appendChild(toast);
+
+  window.setTimeout(() => {
+    toast.style.transition = "opacity 180ms ease, transform 180ms ease";
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(4px)";
+    window.setTimeout(() => {
+      toast.remove();
+    }, 190);
+  }, 1700);
+}
+
+function getNextUpcomingKey(hackathons) {
+  const candidates = hackathons
+    .filter((item) => {
+      const hours = getDiffHours(item.deadline);
+      return hours !== null && hours > 0;
+    })
+    .sort((a, b) => toDeadlineEnd(a.deadline).getTime() - toDeadlineEnd(b.deadline).getTime());
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  return getHackathonKey(candidates[0]);
+}
+
 function countdownClass(tone) {
   if (tone === "red") {
     return "rounded-full border border-red-400/40 bg-red-500/20 px-2 py-1 text-xs font-semibold text-red-200";
@@ -256,10 +309,15 @@ function buildCard(hackathon) {
   const key = getHackathonKey(hackathon);
   const expanded = uiState.expandedId === key;
   const countdown = getCountdown(hackathon.deadline);
+  const status = getStatus(hackathon.deadline);
+  const nextUpcomingKey = getNextUpcomingKey(uiState.data);
 
   card.dataset.hackathonKey = key;
   card.className =
     "glass card-hover group relative rounded-2xl border border-gray-700 p-3 shadow-md";
+  if (nextUpcomingKey && key === nextUpcomingKey) {
+    card.classList.add("next-upcoming-highlight");
+  }
 
   const top = document.createElement("div");
   top.className = "flex items-start justify-between gap-3 pr-8";
@@ -279,6 +337,14 @@ function buildCard(hackathon) {
   prize.className = "mt-1 text-xs text-gray-300";
   prize.textContent = `💰 ${hackathon.prize || "Not detected"}`;
 
+  const statusPill = document.createElement("span");
+  statusPill.className = status.className;
+  statusPill.textContent = status.label;
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "mt-2 flex items-center gap-2";
+  metaRow.appendChild(statusPill);
+
   const badge = document.createElement("span");
   badge.className = countdownClass(countdown.tone);
   badge.dataset.role = "countdown";
@@ -291,7 +357,7 @@ function buildCard(hackathon) {
     "ui-button absolute right-2 top-2 rounded-md p-1 text-sm text-gray-400 opacity-60 hover:text-red-400 hover:opacity-100";
   deleteButton.textContent = "🗑️";
 
-  titleWrap.append(title, deadline, prize);
+  titleWrap.append(title, deadline, prize, metaRow);
   top.append(titleWrap, badge);
 
   const actions = document.createElement("div");
@@ -386,6 +452,14 @@ function renderList() {
   const fragment = document.createDocumentFragment();
   rows.forEach((hackathon) => fragment.appendChild(buildCard(hackathon)));
   list.appendChild(fragment);
+
+  const nextUpcomingKey = getNextUpcomingKey(rows);
+  if (nextUpcomingKey) {
+    const target = list.querySelector(`[data-hackathon-key='${nextUpcomingKey}']`);
+    if (target instanceof HTMLElement) {
+      target.classList.add("next-upcoming-highlight");
+    }
+  }
 }
 
 function updateInsights() {
@@ -494,7 +568,11 @@ function renderMiniCalendar() {
     button.dataset.date = dateKey;
     button.dataset.hasEvents = hasEvents ? "true" : "false";
     button.dataset.selected = isSelected ? "true" : "false";
-    button.title = hasEvents ? `${byDate.get(dateKey).length} hackathon(s)` : WEEKDAY_NAMES[new Date(`${dateKey}T00:00:00`).getDay()];
+    const tooltip = hasEvents
+      ? `${byDate.get(dateKey).length} hackathon(s)`
+      : WEEKDAY_NAMES[new Date(`${dateKey}T00:00:00`).getDay()];
+    button.dataset.tooltip = tooltip;
+    button.title = tooltip;
     button.textContent = String(day);
 
     fragment.appendChild(button);
@@ -586,6 +664,7 @@ form.addEventListener("submit", async (event) => {
   form.reset();
   await prefillHackathonNameFromTab();
   refreshDashboard();
+  showToast(existingIndex >= 0 ? "Hackathon updated" : "Hackathon saved");
 });
 
 filterGroup.addEventListener("click", (event) => {
@@ -622,6 +701,9 @@ if (miniCalendarGrid) {
 
     uiState.selectedCalendarDate = dateButton.dataset.date || null;
     renderMiniCalendar();
+    if (uiState.selectedCalendarDate) {
+      showToast("Filtered by selected date");
+    }
   });
 }
 
@@ -687,6 +769,7 @@ list.addEventListener("click", async (event) => {
     uiState.data[index].registered = !uiState.data[index].registered;
     await persistData();
     refreshDashboard();
+    showToast(uiState.data[index].registered ? "Marked as registered" : "Marked as not registered");
     return;
   }
 
@@ -697,6 +780,7 @@ list.addEventListener("click", async (event) => {
     }
 
     chrome.tabs.create({ url: sourceUrl });
+    showToast("Opening registration page");
     return;
   }
 
@@ -709,6 +793,7 @@ list.addEventListener("click", async (event) => {
       uiState.data.splice(index, 1);
       await persistData();
       refreshDashboard();
+      showToast("Hackathon deleted");
     }, 220);
     return;
   }
@@ -760,7 +845,29 @@ list.addEventListener("click", async (event) => {
 
     await persistData();
     refreshDashboard();
+    showToast("Hackathon updated");
   }
+});
+
+list.addEventListener("mouseover", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const card = target.closest("li");
+  if (!(card instanceof HTMLElement)) {
+    return;
+  }
+
+  list.classList.add("has-hovered-card");
+  list.querySelectorAll("li").forEach((item) => item.classList.remove("is-hovered"));
+  card.classList.add("is-hovered");
+});
+
+list.addEventListener("mouseleave", () => {
+  list.classList.remove("has-hovered-card");
+  list.querySelectorAll("li").forEach((item) => item.classList.remove("is-hovered"));
 });
 
 function startCountdownTicker() {
