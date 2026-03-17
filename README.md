@@ -1,3 +1,5 @@
+
+> Stop missing hackathons. Start winning them.
 ### 🚀 How to Install HackTrack Extension
 
 1. Download or clone this repository
@@ -7,3 +9,4 @@
 5. Select the project folder
 
 🎉 Extension is now installed!
+## ⭐ If this helps you, consider giving it a star!
