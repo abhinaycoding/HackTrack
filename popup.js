@@ -63,11 +63,12 @@ function hasValidDeadline(deadline) {
 }
 
 function getDiffHours(deadline) {
-  if (!hasValidDeadline(deadline)) {
+  const endDate = toDeadlineEnd(deadline);
+  if (!(endDate instanceof Date) || Number.isNaN(endDate.getTime())) {
     return null;
   }
 
-  return Math.floor((toDeadlineEnd(deadline).getTime() - Date.now()) / (1000 * 60 * 60));
+  return Math.floor((endDate.getTime() - Date.now()) / (1000 * 60 * 60));
 }
 
 function formatDeadline(dateValue) {
@@ -255,18 +256,27 @@ function runSplashScreen() {
 }
 
 function getNextUpcomingKey(hackathons) {
-  const candidates = hackathons
-    .filter((item) => {
-      const hours = getDiffHours(item.deadline);
-      return hours !== null && hours > 0;
-    })
-    .sort((a, b) => toDeadlineEnd(a.deadline).getTime() - toDeadlineEnd(b.deadline).getTime());
+  let nextItem = null;
+  let minTime = Number.POSITIVE_INFINITY;
 
-  if (!candidates.length) {
-    return null;
-  }
+  hackathons.forEach((item) => {
+    const end = toDeadlineEnd(item.deadline);
+    if (!(end instanceof Date) || Number.isNaN(end.getTime())) {
+      return;
+    }
 
-  return getHackathonKey(candidates[0]);
+    const deadlineTs = end.getTime();
+    if (deadlineTs <= Date.now()) {
+      return;
+    }
+
+    if (deadlineTs < minTime) {
+      minTime = deadlineTs;
+      nextItem = item;
+    }
+  });
+
+  return nextItem ? getHackathonKey(nextItem) : null;
 }
 
 function countdownClass(tone) {
@@ -406,17 +416,16 @@ function updateFilterChips() {
   });
 }
 
-function buildCard(hackathon) {
+function buildCard(hackathon, nextUpcomingKey) {
   const card = document.createElement("li");
   const key = getHackathonKey(hackathon);
   const expanded = uiState.expandedId === key;
   const countdown = getCountdown(hackathon.deadline);
   const status = getStatus(hackathon.deadline);
-  const nextUpcomingKey = getNextUpcomingKey(uiState.data);
 
   card.dataset.hackathonKey = key;
   card.className =
-    "glass card-hover group relative rounded-2xl border border-gray-700 p-3 shadow-md";
+    "glass card-hover group relative rounded-2xl border border-slate-700/80 p-4 shadow-lg";
   if (nextUpcomingKey && key === nextUpcomingKey) {
     card.classList.add("next-upcoming-highlight");
   }
@@ -425,14 +434,15 @@ function buildCard(hackathon) {
   top.className = "flex items-start justify-between gap-3 pr-8";
 
   const titleWrap = document.createElement("div");
+  titleWrap.className = "min-w-0 flex-1";
   const title = document.createElement("span");
-  title.className = "text-sm font-semibold text-gray-100 flex items-center";
+  title.className = "text-sm font-semibold text-gray-100 flex items-center min-w-0";
   
   const titleText = document.createElement("button");
   titleText.type = "button";
   titleText.dataset.action = "toggle-expand";
-  titleText.className = "text-left transition hover:text-indigo-200 flex items-center gap-2 group/expand focus:outline-none";
-  titleText.innerHTML = `<span>${hackathon.name}</span><span class="text-[10px] text-gray-500 transform transition-transform duration-200 ${expanded ? 'rotate-180 text-indigo-400' : 'group-hover/expand:text-indigo-300'}">▼</span>`;
+  titleText.className = "text-left transition hover:text-indigo-200 flex items-start gap-2 group/expand focus:outline-none min-w-0 flex-1";
+  titleText.innerHTML = `<span class="block min-w-0 break-words leading-snug">${hackathon.name}</span><span class="shrink-0 pt-[1px] text-[10px] text-gray-500 transform transition-transform duration-200 ${expanded ? 'rotate-180 text-indigo-400' : 'group-hover/expand:text-indigo-300'}">▼</span>`;
   
   title.appendChild(titleText);
 
@@ -448,7 +458,7 @@ function buildCard(hackathon) {
   title.appendChild(regLink);
 
   const deadline = document.createElement("p");
-  deadline.className = "mt-1 text-xs text-gray-300";
+  deadline.className = "mt-2 text-xs text-gray-300";
   deadline.textContent = `📅 ${formatDeadline(hackathon.deadline)}`;
 
   const prize = document.createElement("p");
@@ -460,11 +470,11 @@ function buildCard(hackathon) {
   statusPill.textContent = status.label;
 
   const metaRow = document.createElement("div");
-  metaRow.className = "mt-2 flex items-center gap-2";
+  metaRow.className = "mt-3 flex items-center gap-2";
   metaRow.appendChild(statusPill);
 
   const badge = document.createElement("span");
-  badge.className = countdownClass(countdown.tone);
+  badge.className = `${countdownClass(countdown.tone)} shrink-0 whitespace-nowrap self-start`;
   badge.dataset.role = "countdown";
   badge.textContent = `⏳ ${countdown.label}`;
 
@@ -481,14 +491,14 @@ function buildCard(hackathon) {
   const progressPercent = checklist.length ? Math.round((completedCount / checklist.length) * 100) : 0;
 
   const progressContainer = document.createElement("div");
-  progressContainer.className = "mt-3 w-full bg-gray-800 rounded-full h-1.5 overflow-hidden";
+  progressContainer.className = "mt-3 w-full bg-gray-800/80 rounded-full h-2 overflow-hidden";
   const progressBar = document.createElement("div");
   progressBar.className = "h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out";
   progressBar.style.width = `${progressPercent}%`;
   progressContainer.appendChild(progressBar);
 
   const progressText = document.createElement("p");
-  progressText.className = "mt-1 text-[10px] text-gray-500 font-medium text-right";
+  progressText.className = "mt-1 text-[10px] text-gray-400 font-semibold text-right";
   progressText.textContent = `${progressPercent}% complete`;
 
   // Tags Section (Preview)
@@ -507,8 +517,8 @@ function buildCard(hackathon) {
 
   const actions = document.createElement("div");
   actions.className = expanded
-    ? "mt-3 flex items-center gap-2"
-    : "mt-3 hidden items-center gap-2 group-hover:flex";
+    ? "mt-4 flex flex-wrap items-center gap-2"
+    : "mt-4 hidden flex-wrap items-center gap-2 group-hover:flex";
 
   const editButton = document.createElement("button");
   editButton.type = "button";
@@ -540,7 +550,7 @@ function buildCard(hackathon) {
 
   const inlineEdit = document.createElement("div");
   inlineEdit.dataset.role = "inline-edit";
-  inlineEdit.className = "mt-3 hidden grid grid-cols-6 gap-2";
+  inlineEdit.className = "mt-3 hidden grid grid-cols-1 gap-2 sm:grid-cols-6";
 
   const nameEdit = document.createElement("input");
   nameEdit.type = "text";
@@ -771,6 +781,7 @@ function buildCard(hackathon) {
 
 function renderList() {
   const rows = filteredAndSortedHackathons(uiState.data);
+  const nextUpcomingKey = getNextUpcomingKey(rows);
 
   if (!rows.length) {
     emptyState.classList.remove("hidden");
@@ -781,11 +792,10 @@ function renderList() {
     // Performance: Only rebuild if the row count or order changed, 
     // or if we are toggling expansion. Otherwise, just update specific nodes.
     const fragment = document.createDocumentFragment();
-    rows.forEach((hackathon) => fragment.appendChild(buildCard(hackathon)));
+    rows.forEach((hackathon) => fragment.appendChild(buildCard(hackathon, nextUpcomingKey)));
     list.replaceChildren(fragment);
   }
 
-  const nextUpcomingKey = getNextUpcomingKey(rows);
   if (nextUpcomingKey) {
     const target = list.querySelector(`[data-hackathon-key='${nextUpcomingKey}']`);
     if (target instanceof HTMLElement) {
@@ -796,16 +806,30 @@ function renderList() {
 
 function updateInsights() {
   const all = uiState.data;
-  const active = all.filter((item) => getDiffHours(item.deadline) > 0);
-  const upcoming = active.filter((item) => getDiffHours(item.deadline) < 72);
-  const avgHours = active.length
-    ? Math.round(active.reduce((sum, item) => sum + Math.max(0, getDiffHours(item.deadline)), 0) / active.length)
-    : 0;
+  let activeCount = 0;
+  let upcomingCount = 0;
+  let activeHoursSum = 0;
+
+  all.forEach((item) => {
+    const hours = getDiffHours(item.deadline);
+    if (hours === null || hours <= 0) {
+      return;
+    }
+
+    activeCount += 1;
+    activeHoursSum += Math.max(0, hours);
+
+    if (hours < 72) {
+      upcomingCount += 1;
+    }
+  });
+
+  const avgHours = activeCount ? Math.round(activeHoursSum / activeCount) : 0;
 
   metricTotal.textContent = String(all.length);
-  metricUpcoming.textContent = String(upcoming.length);
+  metricUpcoming.textContent = String(upcomingCount);
   insightTotal.textContent = String(all.length);
-  insightUpcoming.textContent = String(upcoming.length);
+  insightUpcoming.textContent = String(upcomingCount);
   insightAvg.textContent = `${avgHours}h`;
 }
 
@@ -848,7 +872,6 @@ function renderSelectedDateHackathons() {
       calendarDayList.appendChild(row);
     });
 
-  console.log("HackTrack - selected date", selected, matches);
 }
 
 function renderMiniCalendar() {
@@ -1242,6 +1265,11 @@ function startCountdownTicker() {
       return;
     }
 
+    const itemByKey = new Map();
+    uiState.data.forEach((entry) => {
+      itemByKey.set(getHackathonKey(entry), entry);
+    });
+
     const rows = list.querySelectorAll("li");
     rows.forEach((row) => {
       if (!(row instanceof HTMLElement)) {
@@ -1254,7 +1282,7 @@ function startCountdownTicker() {
         return;
       }
 
-      const item = uiState.data.find((entry) => getHackathonKey(entry) === key);
+      const item = itemByKey.get(key);
       if (!item) {
         return;
       }

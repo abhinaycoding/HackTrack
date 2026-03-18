@@ -8,23 +8,104 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/index.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fontsource/plus-jakarta-sans@5.0.18/index.css"
+    />
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
       :root {
         color-scheme: dark;
+        --font-body: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --font-display: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       }
 
       body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-family: var(--font-body);
+        margin: 0;
+        background:
+          radial-gradient(circle at 12% 10%, rgba(79, 70, 229, 0.2), transparent 36%),
+          radial-gradient(circle at 86% 4%, rgba(168, 85, 247, 0.16), transparent 38%),
+          #020617;
+        width: 860px;
+        overflow-x: hidden;
+        letter-spacing: 0.01em;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--font-display);
+        letter-spacing: 0;
       }
 
       .glass {
-        background: rgba(17, 24, 39, 0.64);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.78), rgba(17, 24, 39, 0.62));
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        backdrop-filter: blur(14px);
       }
 
       .soft-glow {
-        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.18);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.46), 0 6px 20px rgba(79, 70, 229, 0.2);
+      }
+
+      .panel-surface {
+        border: 1px solid rgba(71, 85, 105, 0.45);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.68));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+      }
+
+      .section-kicker {
+        margin-bottom: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 1);
+      }
+
+      .insight-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .insight-card {
+        border: 1px solid rgba(71, 85, 105, 0.55);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.58));
+        padding: 10px 12px;
+      }
+
+      .insight-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: rgba(148, 163, 184, 1);
+        letter-spacing: 0.02em;
+      }
+
+      .insight-value {
+        margin-top: 6px;
+        font-size: 22px;
+        line-height: 1;
+        font-weight: 700;
+        color: rgba(241, 245, 249, 1);
+      }
+
+      .insight-sub {
+        margin-top: 4px;
+        font-size: 10px;
+        color: rgba(100, 116, 139, 1);
       }
 
       .pulse-chip {
@@ -32,8 +113,10 @@
       }
 
       .dashboard-scroll {
-        max-height: 540px;
-        overflow: auto;
+        max-height: 560px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 4px;
       }
 
       .dashboard-scroll::-webkit-scrollbar {
@@ -59,6 +142,12 @@
         transition: transform 0.15s ease, filter 0.15s ease;
       }
 
+      .ui-button:focus-visible,
+      .ui-input:focus-visible {
+        outline: 2px solid rgba(129, 140, 248, 0.7);
+        outline-offset: 1px;
+      }
+
       .ui-button:hover {
         filter: brightness(1.05);
       }
@@ -68,12 +157,13 @@
       }
 
       .card-hover {
-        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
       }
 
       .card-hover:hover {
         border-color: rgba(129, 140, 248, 0.45);
-        box-shadow: 0 8px 22px rgba(79, 70, 229, 0.18);
+        box-shadow: 0 10px 24px rgba(79, 70, 229, 0.18);
+        transform: translateY(-1px);
       }
 
       #hackathon-list.has-hovered-card > li {
@@ -125,6 +215,81 @@
         padding-bottom: 8px;
         background: linear-gradient(to bottom, rgba(17, 24, 39, 0.94), rgba(17, 24, 39, 0.75) 72%, rgba(17, 24, 39, 0));
         backdrop-filter: blur(6px);
+      }
+
+      .header-main {
+        min-width: 0;
+        flex: 1 1 420px;
+      }
+
+      .header-stats {
+        flex: 1 1 260px;
+        min-width: 220px;
+      }
+
+      .toolbar-wrap {
+        flex-wrap: wrap;
+      }
+
+      .calendar-panel {
+        max-height: 360px;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      .calendar-panel::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .calendar-panel::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(100, 116, 139, 0.38);
+      }
+
+      .calendar-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        padding-bottom: 10px;
+        background: linear-gradient(to bottom, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.82) 75%, rgba(15, 23, 42, 0));
+        backdrop-filter: blur(6px);
+      }
+
+      .calendar-nav-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .calendar-nav-btn {
+        min-width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.9));
+        color: rgba(226, 232, 240, 1);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        padding: 0 8px;
+      }
+
+      .calendar-nav-btn:hover {
+        border-color: rgba(129, 140, 248, 0.8);
+        background: linear-gradient(180deg, rgba(49, 46, 129, 0.5), rgba(30, 27, 75, 0.5));
+      }
+
+      .calendar-month-chip {
+        min-width: 92px;
+        border-radius: 8px;
+        border: 1px solid rgba(71, 85, 105, 0.6);
+        background: rgba(15, 23, 42, 0.75);
+        padding: 5px 8px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(226, 232, 240, 1);
+        letter-spacing: 0.01em;
       }
 
       .mini-calendar-grid {
@@ -205,6 +370,7 @@
 
       #main-ui {
         transition: filter 0.28s ease, opacity 0.28s ease;
+        min-height: 640px;
       }
 
       #main-ui.splash-blur {
@@ -302,16 +468,17 @@
       .toast-item {
         animation: toast-enter 0.28s ease-out forwards;
       }
+
     </style>
   </head>
-  <body class="bg-gray-950 text-gray-100" style="width: 820px;">
+  <body class="bg-gray-950 text-gray-100">
     <main id="main-ui" class="relative overflow-hidden p-4 splash-blur">
       <div class="pointer-events-none absolute -left-10 -top-12 h-44 w-44 rounded-full bg-indigo-500/20 blur-3xl"></div>
       <div class="pointer-events-none absolute right-0 top-4 h-40 w-40 rounded-full bg-fuchsia-500/20 blur-3xl"></div>
 
       <header class="glass soft-glow relative z-10 rounded-2xl p-5">
-        <div class="flex items-start justify-between gap-4">
-          <div>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="header-main">
             <h1 class="text-2xl font-semibold tracking-tight text-white">HackTrack Dashboard</h1>
             <p class="mt-1 text-sm text-gray-200">Never miss a hackathon again</p>
             <div class="relative mt-3">
@@ -326,7 +493,7 @@
               />
             </div>
           </div>
-          <div class="flex flex-col items-end gap-2">
+          <div class="header-stats flex w-full flex-col items-end gap-2 md:w-auto">
             <div class="grid grid-cols-2 gap-2 text-right">
               <div class="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2">
                 <p class="text-[11px] uppercase tracking-widest text-gray-400">Total</p>
@@ -345,47 +512,48 @@
           </div>
         </div>
 
-        <form id="hackathon-form" class="mt-5 grid grid-cols-12 gap-2">
+        <form id="hackathon-form" class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-12">
           <input
             id="name"
             name="name"
             type="text"
             required
             placeholder="Hackathon Name"
-            class="ui-input col-span-5 rounded-xl border bg-gray-900/80 px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none"
+            class="ui-input sm:col-span-5 rounded-xl border bg-gray-900/80 px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none"
           />
           <input
             id="deadline"
             name="deadline"
             type="date"
-            class="ui-input col-span-3 rounded-xl border bg-gray-900/80 px-3 py-2 text-sm text-white focus:outline-none"
+            class="ui-input sm:col-span-3 rounded-xl border bg-gray-900/80 px-3 py-2 text-sm text-white focus:outline-none"
           />
           <input
             id="prize"
             name="prize"
             type="text"
             placeholder="Prize (optional)"
-            class="ui-input col-span-2 rounded-xl border bg-gray-900/80 px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none"
+            class="ui-input sm:col-span-2 rounded-xl border bg-gray-900/80 px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none"
           />
           <button
             type="submit"
-            class="ui-button col-span-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-3 py-2 text-sm font-semibold text-white"
+            class="ui-button sm:col-span-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-3 py-2 text-sm font-semibold text-white"
           >
             Save
           </button>
         </form>
       </header>
 
-      <section class="relative z-10 mt-5 grid grid-cols-12 gap-4">
-        <div class="col-span-8 rounded-2xl border border-gray-800 bg-gray-900/70 p-3">
-          <div class="controls-sticky mb-4 flex items-center justify-between gap-2">
-            <div id="filter-group" class="flex items-center gap-2">
+      <section class="relative z-10 mt-5 grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div class="panel-surface lg:col-span-8 rounded-2xl p-3">
+          <p class="section-kicker">Saved Hackathons</p>
+          <div class="controls-sticky toolbar-wrap mb-4 flex items-center justify-between gap-2">
+            <div id="filter-group" class="flex flex-wrap items-center gap-2">
               <button type="button" data-filter="all" class="filter-chip ui-button pulse-chip rounded-full border border-indigo-400/40 bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-200">All</button>
               <button type="button" data-filter="registered" class="filter-chip ui-button pulse-chip rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-200">Registered</button>
               <button type="button" data-filter="not_registered" class="filter-chip ui-button pulse-chip rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-200">Not Registered</button>
               <button type="button" data-filter="ending_soon" class="filter-chip ui-button pulse-chip rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-200">Ending Soon</button>
             </div>
-            <select id="sort-select" class="ui-input rounded-lg border bg-gray-900 px-2 py-1 text-xs text-gray-100 focus:outline-none">
+            <select id="sort-select" class="ui-input w-full sm:w-auto rounded-lg border bg-gray-900 px-2 py-1 text-xs text-gray-100 focus:outline-none">
               <option value="deadline">Sort: Deadline</option>
               <option value="prize">Sort: Prize</option>
               <option value="recent">Sort: Recently Added</option>
@@ -406,30 +574,38 @@
           </div>
         </div>
 
-        <aside class="col-span-4 space-y-3">
-          <div class="glass rounded-2xl p-3">
+        <aside class="lg:col-span-4 space-y-3">
+          <div class="glass panel-surface rounded-2xl p-3">
             <h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400">Insights</h2>
-            <div class="mt-3 space-y-2 text-sm">
-              <div class="flex items-center justify-between rounded-lg bg-gray-900/70 px-3 py-2">
-                <span class="text-gray-400">Total saved</span><span id="insight-total" class="font-semibold text-gray-100">0</span>
+            <div class="insight-grid mt-3">
+              <div class="insight-card">
+                <p class="insight-label">📌 Total saved</p>
+                <p id="insight-total" class="insight-value">0</p>
+                <p class="insight-sub">Hackathons in your tracker</p>
               </div>
-              <div class="flex items-center justify-between rounded-lg bg-gray-900/70 px-3 py-2">
-                <span class="text-gray-400">Upcoming (3d)</span><span id="insight-upcoming" class="font-semibold text-gray-100">0</span>
+
+              <div class="insight-card">
+                <p class="insight-label">⏳ Upcoming (3d)</p>
+                <p id="insight-upcoming" class="insight-value">0</p>
+                <p class="insight-sub">Closing soon and need action</p>
               </div>
-              <div class="flex items-center justify-between rounded-lg bg-gray-900/70 px-3 py-2">
-                <span class="text-gray-400">Avg time left</span><span id="insight-avg" class="font-semibold text-gray-100">0h</span>
+
+              <div class="insight-card">
+                <p class="insight-label">📈 Avg time left</p>
+                <p id="insight-avg" class="insight-value">0h</p>
+                <p class="insight-sub">Average runway across active events</p>
               </div>
             </div>
           </div>
 
-          <div class="glass rounded-2xl p-3">
-            <div class="flex items-center justify-between">
+          <div class="glass panel-surface calendar-panel rounded-2xl p-3">
+            <div class="calendar-toolbar flex items-center justify-between">
               <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-400">Calendar</h3>
-              <div class="flex items-center gap-1">
-                <button id="calendar-prev-month" type="button" class="ui-button rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1 text-xs text-gray-200">‹</button>
-                <span id="calendar-month-label" class="min-w-[78px] text-center text-xs text-gray-300">-</span>
-                <button id="calendar-next-month" type="button" class="ui-button rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1 text-xs text-gray-200">›</button>
-                <button id="calendar-today" type="button" class="ui-button rounded-md border border-gray-700 bg-gray-900/80 px-2 py-1 text-[10px] text-gray-300">Today</button>
+              <div class="calendar-nav-group">
+                <button id="calendar-prev-month" type="button" class="ui-button calendar-nav-btn" aria-label="Previous month">‹</button>
+                <span id="calendar-month-label" class="calendar-month-chip">-</span>
+                <button id="calendar-next-month" type="button" class="ui-button calendar-nav-btn" aria-label="Next month">›</button>
+                <button id="calendar-today" type="button" class="ui-button calendar-nav-btn" aria-label="Jump to current month">Today</button>
               </div>
             </div>
             <div id="calendar-weekdays" class="mini-calendar-grid mt-3 text-center text-[10px] font-semibold uppercase tracking-wide text-gray-400">
@@ -441,6 +617,7 @@
               <ul id="calendar-day-list" class="mt-2 space-y-1 text-xs text-gray-200"></ul>
             </div>
           </div>
+
         </aside>
       </section>
     </main>

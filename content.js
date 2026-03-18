@@ -2,15 +2,18 @@ const STORAGE_KEY = "hackathons";
 const ROOT_ID = "hacktrack-floating-root";
 const HACKATHON_KEYWORDS = ["hackathon", "devpost", "unstop", "mlh", "challenge"];
 const SCROLL_TRIGGER_PX = 200;
+const NAV_EVENT_NAME = "hacktrack:spa-navigation";
 const TAB_LABEL_REGEX = /\b(prizes?|rewards?|awards?)\b/i;
 const OVERVIEW_TAB_REGEX = /\b(overview|about|details|summary|home)\b/i;
 const TAB_WAIT_MS = 1200;
 
 const DATE_KEYWORDS_REGEX =
-  /\b(deadline|last\s*date|apply\s*by|registration\s*ends?|submission\s*deadline|applications?\s*close|runs\s*from|starts?|ends?)\b/i;
+  /\b(deadline|last\s*date|apply\s*by|registration\s*ends?|submission\s*deadline|applications?\s*close|runs\s*from|starts?|ends?|days?\s*left|hours?\s*left|remaining|closes?\s*in)\b/i;
 const DATE_END_KEYWORDS_REGEX =
-  /\b(deadline|last\s*date|apply\s*by|registration\s*ends?|submission\s*deadline|applications?\s*close|ends?)\b/i;
+  /\b(deadline|last\s*date|apply\s*by|registration\s*ends?|submission\s*deadline|applications?\s*close|ends?|days?\s*left|hours?\s*left|remaining|closes?\s*in)\b/i;
 const DATE_START_KEYWORDS_REGEX = /\b(runs\s*from|starts?)\b/i;
+const DATE_EXCLUDE_CONTEXT_REGEX =
+  /\b(updated\s*on|last\s*updated|listed\s*on|posted\s*on|created\s*on|published\s*on)\b/i;
 
 const PRIZE_STRONG_KEYWORDS_REGEX =
   /\b(prize\s*pool|prizes\s*worth|total\s*prize|win\s*up\s*to|cash\s*prize)\b/i;
@@ -41,8 +44,13 @@ const state = {
   extractedData: null,
   hideTimeoutMs: 3500,
   tabPrizeAttempted: false,
-  tabPrizeCachedResult: null
+  tabPrizeCachedResult: null,
+  spaWatcherInstalled: false,
+  lastKnownUrl: window.location.href,
+  navigationDebounceTimer: null
 };
+
+const IS_DEVPOST_HOST = window.location.hostname.toLowerCase().includes("devpost");
 
 function wait(ms) {
   return new Promise((resolve) => {
@@ -144,6 +152,112 @@ function parseDateValue(value) {
   }
 
   return `${year}-${String(first).padStart(2, "0")}-${String(second).padStart(2, "0")}`;
+}
+
+function parseRelativeDateFromText(value) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = String(value).toLowerCase().replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const now = new Date();
+
+  if (/\btoday\b/.test(normalized)) {
+    return toIsoDate(now);
+  }
+
+  if (/\btomorrow\b/.test(normalized)) {
+    const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return toIsoDate(nextDay);
+  }
+
+  const inDaysMatch = normalized.match(/\bin\s+(\d{1,3})\s+days?\b/);
+  if (inDaysMatch) {
+    const days = Number(inDaysMatch[1]);
+    if (!Number.isNaN(days) && days >= 0) {
+      const nextDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+      return toIsoDate(nextDate);
+    }
+  }
+
+  const daysLeftMatch = normalized.match(/\b(\d{1,3})\s+days?\s+left\b/);
+  if (daysLeftMatch) {
+    const days = Number(daysLeftMatch[1]);
+    if (!Number.isNaN(days) && days >= 0) {
+      const nextDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+      return toIsoDate(nextDate);
+    }
+  }
+
+  const inHoursMatch = normalized.match(/\bin\s+(\d{1,3})\s+hours?\b/);
+  if (inHoursMatch) {
+    const hours = Number(inHoursMatch[1]);
+    if (!Number.isNaN(hours) && hours >= 0) {
+      const nextDate = new Date(now.getTime() + hours * 60 * 60 * 1000);
+      return toIsoDate(nextDate);
+    }
+  }
+
+  const hoursLeftMatch = normalized.match(/\b(\d{1,3})\s+hours?\s+left\b/);
+  if (hoursLeftMatch) {
+    const hours = Number(hoursLeftMatch[1]);
+    if (!Number.isNaN(hours) && hours >= 0) {
+      const nextDate = new Date(now.getTime() + hours * 60 * 60 * 1000);
+      return toIsoDate(nextDate);
+    }
+  }
+
+  const inWeeksMatch = normalized.match(/\bin\s+(\d{1,2})\s+weeks?\b/);
+  if (inWeeksMatch) {
+    const weeks = Number(inWeeksMatch[1]);
+    if (!Number.isNaN(weeks) && weeks >= 0) {
+      const nextDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weeks * 7);
+      return toIsoDate(nextDate);
+    }
+  }
+
+  return null;
+}
+
+function shouldIgnoreMetadataDateText(text) {
+  const normalized = String(text || "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (!DATE_EXCLUDE_CONTEXT_REGEX.test(normalized)) {
+    return false;
+  }
+
+  return !DATE_END_KEYWORDS_REGEX.test(normalized);
+}
+
+function extractDeadlineCandidatesFromValue(value) {
+  const candidates = [];
+  if (!value) {
+    return candidates;
+  }
+
+  const parsedExplicit = parseDateValue(value);
+  if (parsedExplicit) {
+    candidates.push(parsedExplicit);
+  }
+
+  const extractedDates = extractDatesFromText(value);
+  if (extractedDates.length) {
+    candidates.push(...extractedDates);
+  }
+
+  const parsedRelative = parseRelativeDateFromText(value);
+  if (parsedRelative) {
+    candidates.push(parsedRelative);
+  }
+
+  return [...new Set(candidates)];
 }
 
 function isReasonableDeadline(isoDate) {
@@ -319,16 +433,11 @@ function detectDeadlineSiteSpecific() {
       continue;
     }
 
-    const candidates = [];
-    const parsedExplicit = parseDateValue(value);
-    if (parsedExplicit) {
-      candidates.push(parsedExplicit);
+    if (shouldIgnoreMetadataDateText(value)) {
+      continue;
     }
 
-    const extractedDates = extractDatesFromText(value);
-    if (extractedDates.length) {
-      candidates.push(...extractedDates);
-    }
+    const candidates = extractDeadlineCandidatesFromValue(value);
 
     const best = selectBestDeadline(candidates);
     if (best) {
@@ -348,7 +457,11 @@ function detectDeadlineFromElements(visibleTextElements) {
       continue;
     }
 
-    const extractedDates = extractDatesFromText(text);
+    if (shouldIgnoreMetadataDateText(text)) {
+      continue;
+    }
+
+    const extractedDates = extractDeadlineCandidatesFromValue(text);
     if (!extractedDates.length) {
       continue;
     }
@@ -356,7 +469,9 @@ function detectDeadlineFromElements(visibleTextElements) {
     const lowerText = text.toLowerCase();
     let score = 10;
 
-    if (/deadline|last\s*date|apply\s*by|submission\s*deadline|applications?\s*close/.test(lowerText)) {
+    if (/days?\s*left|hours?\s*left|remaining|closes?\s*in/.test(lowerText)) {
+      score = 120;
+    } else if (/deadline|last\s*date|apply\s*by|submission\s*deadline|applications?\s*close/.test(lowerText)) {
       score = 100;
     } else if (DATE_END_KEYWORDS_REGEX.test(lowerText)) {
       score = 80;
@@ -391,15 +506,7 @@ function detectDeadlineSafeFallback() {
     const values = [node.getAttribute("datetime"), node.getAttribute("data-deadline"), node.textContent];
 
     for (const value of values) {
-      const candidates = [];
-      const parsed = parseDateValue(value);
-      if (parsed) {
-        candidates.push(parsed);
-      }
-      const extracted = extractDatesFromText(value);
-      if (extracted.length) {
-        candidates.push(...extracted);
-      }
+      const candidates = extractDeadlineCandidatesFromValue(value);
 
       const best = selectBestDeadline(candidates);
       if (best) {
@@ -409,6 +516,90 @@ function detectDeadlineSafeFallback() {
   }
 
   return null;
+}
+
+function detectDeadlineFromStructuredData() {
+  const candidates = [];
+
+  const tryPushValue = (value) => {
+    const extracted = extractDeadlineCandidatesFromValue(value);
+    if (extracted.length) {
+      candidates.push(...extracted);
+    }
+  };
+
+  const scriptNodes = document.querySelectorAll("script[type='application/ld+json']");
+  scriptNodes.forEach((node) => {
+    const raw = node.textContent;
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      const stack = Array.isArray(parsed) ? [...parsed] : [parsed];
+
+      while (stack.length) {
+        const entry = stack.pop();
+        if (!entry) {
+          continue;
+        }
+
+        if (Array.isArray(entry)) {
+          stack.push(...entry);
+          continue;
+        }
+
+        if (typeof entry !== "object") {
+          continue;
+        }
+
+        const dateKeys = [
+          "endDate",
+          "startDate",
+          "validThrough",
+          "deadline",
+          "applicationDeadline",
+          "registrationDeadline",
+          "closes",
+          "submissionDeadline"
+        ];
+
+        dateKeys.forEach((key) => {
+          if (entry[key]) {
+            tryPushValue(entry[key]);
+          }
+        });
+
+        Object.values(entry).forEach((value) => {
+          if (value && typeof value === "object") {
+            stack.push(value);
+          }
+        });
+      }
+    } catch (error) {
+      console.debug("HackTrack: Failed to parse JSON-LD for date extraction", error);
+    }
+  });
+
+  const metaSelectors = [
+    "meta[name*='deadline' i]",
+    "meta[property*='deadline' i]",
+    "meta[name*='end' i]",
+    "meta[property*='end' i]",
+    "meta[name*='event' i]",
+    "meta[property*='event' i]",
+    "meta[itemprop='endDate']",
+    "meta[itemprop='startDate']"
+  ];
+
+  metaSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((node) => {
+      tryPushValue(node.getAttribute("content") || node.getAttribute("value") || node.textContent);
+    });
+  });
+
+  return selectBestDeadline(candidates);
 }
 
 function detectPrizeSiteSpecific() {
@@ -626,7 +817,8 @@ async function detectHackathonData() {
   const deadline =
     detectDeadlineSiteSpecific() ||
     detectDeadlineFromElements(visibleTextElements) ||
-    detectDeadlineSafeFallback();
+    detectDeadlineSafeFallback() ||
+    detectDeadlineFromStructuredData();
 
   let prize =
     detectPrizeSiteSpecific() ||
@@ -641,6 +833,22 @@ async function detectHackathonData() {
   const countdown = deadline ? getCountdownInfo(deadline) : null;
 
   return { title, deadline, prize, prizeNotLoaded: !prize && prizeNotLoaded, countdown };
+}
+
+async function detectHackathonDataWithRetry() {
+  const initial = await detectHackathonData();
+  if (initial.deadline) {
+    return initial;
+  }
+
+  await wait(1800);
+  const secondPass = await detectHackathonData();
+  if (secondPass.deadline) {
+    return secondPass;
+  }
+
+  await wait(2800);
+  return detectHackathonData();
 }
 
 function getHackathons() {
@@ -745,13 +953,14 @@ function hideFab(root) {
 
 async function saveFromPreview(root, fabTop) {
   const saveBtn = root.shadowRoot.querySelector('[data-action="save"]');
+  const successOverlay = root.shadowRoot.getElementById("save-success-msg");
   const originalText = saveBtn.textContent;
   
   try {
     saveBtn.textContent = "Saving...";
     saveBtn.disabled = true;
 
-    const data = state.extractedData || (await detectHackathonData()) || {};
+    const data = state.extractedData || (await detectHackathonDataWithRetry()) || {};
     const hackathons = await getHackathons();
     const currentUrl = window.location.href.split("#")[0].split("?")[0];
     
@@ -761,17 +970,12 @@ async function saveFromPreview(root, fabTop) {
       return itemUrl === currentUrl;
     });
 
+    let feedbackText = "Saved! ✓";
+    let feedbackButtonColor = "#059669";
+
     if (existingIndex >= 0) {
-      const existing = hackathons[existingIndex];
-      hackathons[existingIndex] = {
-        ...existing,
-        name: data.title || existing.name || "Untitled Hackathon",
-        sourceUrl: existing.sourceUrl || currentUrl,
-        deadline: data.deadline || existing.deadline || "",
-        prize: data.prize || existing.prize || "Not specified",
-        updatedAt: Date.now()
-      };
-      await saveHackathons(hackathons);
+      feedbackText = "Already saved";
+      feedbackButtonColor = "#2563eb";
     } else {
       const nextHackathon = {
         id: (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36),
@@ -786,11 +990,11 @@ async function saveFromPreview(root, fabTop) {
       await saveHackathons(hackathons);
     }
 
-    saveBtn.textContent = "Saved! ✓";
-    saveBtn.style.background = "#059669"; // Emerald 600
+    saveBtn.textContent = feedbackText;
+    saveBtn.style.background = feedbackButtonColor;
 
-    const successOverlay = root.shadowRoot.getElementById("save-success-msg");
     if (successOverlay) {
+        successOverlay.textContent = feedbackText;
         successOverlay.classList.remove("hidden");
     }
     
@@ -802,7 +1006,10 @@ async function saveFromPreview(root, fabTop) {
     
     window.setTimeout(() => {
       if (fabTopElement) fabTopElement.innerHTML = originalContent;
-      if (successOverlay) successOverlay.classList.add("hidden");
+      if (successOverlay) {
+        successOverlay.classList.add("hidden");
+        successOverlay.textContent = "Saved! ✓";
+      }
       closePreview(root);
       // Reset button for next time
       saveBtn.textContent = originalText;
@@ -844,7 +1051,7 @@ async function openPreview(root) {
   const countdownNode = root.shadowRoot.querySelector("[data-preview='countdown']");
 
   // Use cached data if available, otherwise detect now
-  const detected = state.extractedData || (await detectHackathonData());
+  const detected = state.extractedData || (await detectHackathonDataWithRetry());
   state.extractedData = detected;
 
   titleNode.textContent = detected.title;
@@ -883,6 +1090,110 @@ function closePreview(root) {
   state.modalOpen = false;
   modal.classList.remove("preview-open");
   showFab(root);
+}
+
+function resetDetectionState() {
+  if (state.hideTimer) {
+    window.clearTimeout(state.hideTimer);
+    state.hideTimer = null;
+  }
+
+  if (state.inactiveTimer) {
+    window.clearTimeout(state.inactiveTimer);
+    state.inactiveTimer = null;
+  }
+
+  state.modalOpen = false;
+  state.isVisible = false;
+  state.extractedData = null;
+  state.tabPrizeAttempted = false;
+  state.tabPrizeCachedResult = null;
+}
+
+function removeInjectedUi() {
+  const root = document.getElementById(ROOT_ID);
+  if (root) {
+    root.remove();
+  }
+}
+
+function refreshUiForRouteChange() {
+  if (state.navigationDebounceTimer) {
+    window.clearTimeout(state.navigationDebounceTimer);
+  }
+
+  state.navigationDebounceTimer = window.setTimeout(() => {
+    const shouldInject = isHackathonPage();
+    if (!shouldInject) {
+      resetDetectionState();
+      removeInjectedUi();
+      return;
+    }
+
+    resetDetectionState();
+    removeInjectedUi();
+    injectUi();
+  }, 140);
+}
+
+function installSpaWatcher() {
+  if (state.spaWatcherInstalled) {
+    return;
+  }
+
+  state.spaWatcherInstalled = true;
+
+  const evaluateNavigation = () => {
+    const currentUrl = window.location.href;
+    const hasRoot = Boolean(document.getElementById(ROOT_ID));
+    const shouldInject = isHackathonPage();
+
+    if (currentUrl !== state.lastKnownUrl) {
+      state.lastKnownUrl = currentUrl;
+      refreshUiForRouteChange();
+      return;
+    }
+
+    if (shouldInject && !hasRoot) {
+      resetDetectionState();
+      injectUi();
+      return;
+    }
+
+    if (!shouldInject && hasRoot) {
+      resetDetectionState();
+      removeInjectedUi();
+    }
+  };
+
+  const patchHistoryMethod = (methodName) => {
+    const original = window.history[methodName];
+    if (typeof original !== "function") {
+      return;
+    }
+
+    window.history[methodName] = function patchedHistoryMethod(...args) {
+      const result = original.apply(this, args);
+      window.dispatchEvent(new Event(NAV_EVENT_NAME));
+      return result;
+    };
+  };
+
+  patchHistoryMethod("pushState");
+  patchHistoryMethod("replaceState");
+
+  window.addEventListener("popstate", evaluateNavigation);
+  window.addEventListener("hashchange", evaluateNavigation);
+  window.addEventListener(NAV_EVENT_NAME, evaluateNavigation);
+
+  const observer = new MutationObserver(() => {
+    evaluateNavigation();
+  });
+
+  const target = document.documentElement || document.body;
+  if (target) {
+    observer.observe(target, { childList: true, subtree: true });
+  }
 }
 
 function injectUi() {
@@ -1082,6 +1393,24 @@ function injectUi() {
         background: linear-gradient(135deg, #4f46e5, #8b5cf6);
         color: white;
       }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .save-success-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        background: rgba(5, 150, 105, 0.96);
+        z-index: 20;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: 700;
+      }
     </style>
 
     <div class="hacktrack-fab" type="button" aria-label="Save hackathon">
@@ -1093,7 +1422,7 @@ function injectUi() {
     </div>
 
     <section class="hacktrack-preview" aria-live="polite">
-      <div id="save-success-msg" class="hidden absolute inset-0 bg-emerald-600/95 flex items-center justify-center rounded-2xl z-20 text-white font-bold text-lg">Saved! ✓</div>
+      <div id="save-success-msg" class="save-success-overlay hidden">Saved! ✓</div>
       <p class="title" data-preview="title"></p>
       <div class="row" data-row="deadline"><span class="label">📅 Deadline</span><span class="value" data-preview="deadline"></span></div>
       <div class="row" data-row="prize"><span class="label">💰 Prize Pool</span><span class="value" data-preview="prize"></span></div>
@@ -1137,7 +1466,13 @@ function injectUi() {
   });
 
   const requestVisible = () => {
-    if (window.scrollY >= SCROLL_TRIGGER_PX) {
+    const hasScrollablePage = document.documentElement.scrollHeight > window.innerHeight + 40;
+    const shouldShow =
+      IS_DEVPOST_HOST ||
+      window.scrollY >= SCROLL_TRIGGER_PX ||
+      (!hasScrollablePage && window.scrollY >= 0);
+
+    if (shouldShow) {
       showFab(root);
       return;
     }
@@ -1166,7 +1501,7 @@ function injectUi() {
         }
       }, state.hideTimeoutMs);
 
-      if (!state.modalOpen && window.scrollY >= SCROLL_TRIGGER_PX) {
+      if (!state.modalOpen && (IS_DEVPOST_HOST || window.scrollY >= SCROLL_TRIGGER_PX)) {
         showFab(root);
       }
     },
@@ -1184,17 +1519,19 @@ function injectUi() {
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(async () => {
       if (!state.extractedData) {
-        state.extractedData = await detectHackathonData();
+        state.extractedData = await detectHackathonDataWithRetry();
       }
     }, { timeout: 3000 });
   } else {
     window.setTimeout(async () => {
       if (!state.extractedData) {
-        state.extractedData = await detectHackathonData();
+        state.extractedData = await detectHackathonDataWithRetry();
       }
     }, 2000);
   }
 }
+
+installSpaWatcher();
 
 if (isHackathonPage()) {
   injectUi();
