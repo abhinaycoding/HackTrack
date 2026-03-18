@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HackTrack</title>
+    <title>HackTrack Dashboard</title>
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
@@ -11,6 +11,10 @@
     <style>
       :root {
         color-scheme: dark;
+      }
+
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       }
 
       .glass {
@@ -73,38 +77,40 @@
       }
 
       #hackathon-list.has-hovered-card > li {
-        opacity: 0.42;
-        filter: saturate(0.85);
+        opacity: 0.7;
       }
 
       #hackathon-list.has-hovered-card > li.is-hovered {
         opacity: 1;
-        filter: none;
+        border-color: rgba(99, 102, 241, 0.5);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
       }
 
       .status-pill {
         border-radius: 999px;
         padding: 2px 8px;
-        font-size: 11px;
-        font-weight: 600;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
       }
 
       .status-upcoming {
-        border: 1px solid rgba(52, 211, 153, 0.45);
-        background: rgba(16, 185, 129, 0.18);
-        color: rgba(167, 243, 208, 1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        background: rgba(16, 185, 129, 0.1);
+        color: rgba(52, 211, 153, 1);
       }
 
       .status-urgent {
-        border: 1px solid rgba(251, 191, 36, 0.45);
-        background: rgba(245, 158, 11, 0.18);
-        color: rgba(253, 230, 138, 1);
+        border: 1px solid rgba(249, 115, 22, 0.4);
+        background: rgba(249, 115, 22, 0.1);
+        color: rgba(251, 146, 60, 1);
       }
 
       .status-missed {
-        border: 1px solid rgba(248, 113, 113, 0.45);
-        background: rgba(239, 68, 68, 0.18);
-        color: rgba(254, 202, 202, 1);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        background: rgba(239, 68, 68, 0.1);
+        color: rgba(248, 113, 113, 1);
       }
 
       .next-upcoming-highlight {
@@ -248,13 +254,13 @@
         width: 44px;
         border-radius: 999px;
         border: 1px solid rgba(255, 255, 255, 0.16);
-        background: linear-gradient(145deg, rgba(99, 102, 241, 0.6), rgba(139, 92, 246, 0.55));
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 20px;
         color: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.28);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
       }
 
       .splash-title {
@@ -281,6 +287,21 @@
           opacity: 1;
         }
       }
+
+      @keyframes toast-enter {
+        0% {
+          transform: translateY(12px) scale(0.9);
+          opacity: 0;
+        }
+        100% {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+      }
+
+      .toast-item {
+        animation: toast-enter 0.28s ease-out forwards;
+      }
     </style>
   </head>
   <body class="bg-gray-950 text-gray-100" style="width: 820px;">
@@ -293,15 +314,33 @@
           <div>
             <h1 class="text-2xl font-semibold tracking-tight text-white">HackTrack Dashboard</h1>
             <p class="mt-1 text-sm text-gray-200">Never miss a hackathon again</p>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-right">
-            <div class="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2">
-              <p class="text-[11px] uppercase tracking-widest text-gray-400">Total</p>
-              <p id="metric-total" class="text-lg font-semibold">0</p>
+            <div class="relative mt-3">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                <span class="text-gray-400">🔍</span>
+              </span>
+              <input 
+                id="search-input" 
+                type="text" 
+                placeholder="Search hackathons..." 
+                class="ui-input w-full rounded-xl bg-gray-900/50 border border-gray-700 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              />
             </div>
-            <div class="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2">
-              <p class="text-[11px] uppercase tracking-widest text-gray-400">Upcoming</p>
-              <p id="metric-upcoming" class="text-lg font-semibold">0</p>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <div class="grid grid-cols-2 gap-2 text-right">
+              <div class="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2">
+                <p class="text-[11px] uppercase tracking-widest text-gray-400">Total</p>
+                <p id="metric-total" class="text-lg font-semibold">0</p>
+              </div>
+              <div class="rounded-xl border border-gray-700 bg-gray-900/70 px-3 py-2">
+                <p class="text-[11px] uppercase tracking-widest text-gray-400">Upcoming</p>
+                <p id="metric-upcoming" class="text-lg font-semibold">0</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button id="export-btn" type="button" class="ui-button rounded-lg bg-gray-800 px-2 py-1 text-[10px] font-semibold text-gray-300 hover:bg-gray-700">📤 Export</button>
+              <button id="import-btn" type="button" class="ui-button rounded-lg bg-gray-800 px-2 py-1 text-[10px] font-semibold text-gray-300 hover:bg-gray-700">📥 Import</button>
+              <input type="file" id="import-file" class="hidden" accept=".json" />
             </div>
           </div>
         </div>
@@ -355,11 +394,15 @@
 
           <ul id="hackathon-list" class="dashboard-scroll space-y-3"></ul>
 
-          <div id="empty-state" class="hidden rounded-2xl border border-dashed border-gray-700 bg-gray-900/60 p-8 text-center">
-            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/20 text-2xl">🚀</div>
-            <p class="text-base font-semibold text-gray-200">No hackathons saved yet 🚀</p>
-            <p class="mt-1 text-sm text-gray-300">Start exploring and save your first hackathon</p>
-            <p class="empty-state-note">Tip: use the floating Save button on hackathon pages for quick capture.</p>
+          <div id="empty-state" class="hidden rounded-2xl border border-dashed border-gray-700 bg-gray-900/60 p-8 text-center mt-8">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-white/5 shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-indigo-400 drop-shadow-[0_0_8px_rgba(129,140,248,0.5)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
+            <p class="text-base font-semibold text-gray-100 tracking-tight">No hackathons saved yet</p>
+            <p class="mt-1 text-sm text-gray-400 mb-4">Start exploring and save your first hackathon.</p>
+            <div class="inline-block px-3 py-2 rounded-lg bg-gray-800/50 border border-gray-700/50">
+              <p class="text-[11px] text-gray-300">Tip: use the floating <strong class="text-indigo-400">Save button</strong> on hackathon pages.</p>
+            </div>
           </div>
         </div>
 
@@ -404,9 +447,10 @@
 
     <div id="splash-overlay" class="splash-overlay" aria-hidden="true">
       <div class="splash-center">
-        <div class="splash-logo">🚀</div>
-        <p class="splash-title">HackTrack</p>
-        <p class="splash-sub">Command center loading…</p>
+        <div class="splash-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        </div>
+        <h1 class="splash-title tracking-tight font-bold">HackTrack</h1>
       </div>
     </div>
 

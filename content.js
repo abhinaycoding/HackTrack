@@ -645,15 +645,35 @@ async function detectHackathonData() {
 
 function getHackathons() {
   return new Promise((resolve) => {
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      console.error("HackTrack: Extension context invalidated. Please reload the page.");
+      resolve([]);
+      return;
+    }
     chrome.storage.local.get([STORAGE_KEY], (result) => {
-      resolve(Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : []);
+      if (chrome.runtime.lastError) {
+        console.error("HackTrack Storage Error:", chrome.runtime.lastError);
+        resolve([]);
+      } else {
+        resolve(Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : []);
+      }
     });
   });
 }
 
 function saveHackathons(hackathons) {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [STORAGE_KEY]: hackathons }, resolve);
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      alert("HackTrack Error: Extension context lost. Please reload the page to continue saving.");
+      resolve();
+      return;
+    }
+    chrome.storage.local.set({ [STORAGE_KEY]: hackathons }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("HackTrack Save Error:", chrome.runtime.lastError);
+      }
+      resolve();
+    });
   });
 }
 
@@ -723,50 +743,83 @@ function hideFab(root) {
   root.classList.add("fab-hidden");
 }
 
-async function saveFromPreview(root, fabButton) {
-  const data = state.extractedData || (await detectHackathonData());
-  const hackathons = await getHackathons();
-  const currentUrl = window.location.href;
-  const existingIndex = hackathons.findIndex((item) => item.sourceUrl && item.sourceUrl === currentUrl);
+async function saveFromPreview(root, fabTop) {
+  const saveBtn = root.shadowRoot.querySelector('[data-action="save"]');
+  const originalText = saveBtn.textContent;
+  
+  try {
+    saveBtn.textContent = "Saving...";
+    saveBtn.disabled = true;
 
-  if (existingIndex >= 0) {
-    const existing = hackathons[existingIndex];
-    hackathons[existingIndex] = {
-      ...existing,
-      name: data.title || existing.name,
-      sourceUrl: currentUrl,
-      deadline: data.deadline || existing.deadline || "",
-      prize: data.prize || existing.prize,
-      updatedAt: Date.now()
-    };
-    await saveHackathons(hackathons);
-  } else {
-    const nextHackathon = {
-      id: crypto.randomUUID(),
-      name: data.title,
-      registered: false,
-      sourceUrl: currentUrl,
-      createdAt: Date.now()
-    };
+    const data = state.extractedData || (await detectHackathonData()) || {};
+    const hackathons = await getHackathons();
+    const currentUrl = window.location.href.split("#")[0].split("?")[0];
+    
+    const existingIndex = hackathons.findIndex((item) => {
+      if (!item.sourceUrl) return false;
+      const itemUrl = item.sourceUrl.split("#")[0].split("?")[0];
+      return itemUrl === currentUrl;
+    });
 
-    if (data.deadline) {
-      nextHackathon.deadline = data.deadline;
+    if (existingIndex >= 0) {
+      const existing = hackathons[existingIndex];
+      hackathons[existingIndex] = {
+        ...existing,
+        name: data.title || existing.name || "Untitled Hackathon",
+        sourceUrl: existing.sourceUrl || currentUrl,
+        deadline: data.deadline || existing.deadline || "",
+        prize: data.prize || existing.prize || "Not specified",
+        updatedAt: Date.now()
+      };
+      await saveHackathons(hackathons);
+    } else {
+      const nextHackathon = {
+        id: (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36),
+        name: data.title || "Untitled Hackathon",
+        registered: false,
+        sourceUrl: currentUrl,
+        deadline: data.deadline || "",
+        prize: data.prize || "Not specified",
+        createdAt: Date.now()
+      };
+      hackathons.push(nextHackathon);
+      await saveHackathons(hackathons);
     }
 
-    if (data.prize) {
-      nextHackathon.prize = data.prize;
-    }
+    saveBtn.textContent = "Saved! ✓";
+    saveBtn.style.background = "#059669"; // Emerald 600
 
-    hackathons.push(nextHackathon);
-    await saveHackathons(hackathons);
+    const successOverlay = root.shadowRoot.getElementById("save-success-msg");
+    if (successOverlay) {
+        successOverlay.classList.remove("hidden");
+    }
+    
+    const fabTopElement = fabTop || root.shadowRoot.querySelector(".fab-top");
+    const originalContent = fabTopElement ? fabTopElement.innerHTML : "🚀";
+    if (fabTopElement) {
+      fabTopElement.textContent = existingIndex >= 0 ? "✓" : "✅";
+    }
+    
+    window.setTimeout(() => {
+      if (fabTopElement) fabTopElement.innerHTML = originalContent;
+      if (successOverlay) successOverlay.classList.add("hidden");
+      closePreview(root);
+      // Reset button for next time
+      saveBtn.textContent = originalText;
+      saveBtn.disabled = false;
+      saveBtn.style.background = "";
+    }, 1500);
+
+  } catch (err) {
+    console.error("HackTrack Save Error:", err);
+    saveBtn.textContent = "Error!";
+    saveBtn.style.background = "#dc2626"; // Red 600
+    window.setTimeout(() => {
+      saveBtn.textContent = originalText;
+      saveBtn.disabled = false;
+      saveBtn.style.background = "";
+    }, 2000);
   }
-
-  fabButton.textContent = existingIndex >= 0 ? "✓" : "✅";
-  window.setTimeout(() => {
-    fabButton.textContent = "🚀";
-  }, 1400);
-
-  closePreview(root);
 }
 
 function getToneClass(tone) {
@@ -790,7 +843,8 @@ async function openPreview(root) {
   const prizeNode = root.shadowRoot.querySelector("[data-preview='prize']");
   const countdownNode = root.shadowRoot.querySelector("[data-preview='countdown']");
 
-  const detected = await detectHackathonData();
+  // Use cached data if available, otherwise detect now
+  const detected = state.extractedData || (await detectHackathonData());
   state.extractedData = detected;
 
   titleNode.textContent = detected.title;
@@ -868,28 +922,54 @@ function injectUi() {
         position: fixed;
         right: 20px;
         bottom: var(--fab-bottom, 20px);
-        width: 50px;
-        height: 50px;
-        border: 0;
-        border-radius: 999px;
-        background: linear-gradient(135deg, rgba(79, 70, 229, 0.95), rgba(139, 92, 246, 0.95));
-        color: #fff;
-        font-size: 24px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 10px 20px rgba(20, 16, 46, 0.35);
-        backdrop-filter: blur(8px);
-        cursor: pointer;
+        width: 60px;
+        height: 60px;
         z-index: 2147483646;
-        transition: opacity 220ms ease, transform 220ms ease, box-shadow 220ms ease, filter 220ms ease;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.1s ease-in-out;
       }
 
-      .hacktrack-fab:hover {
-        opacity: 1 !important;
-        transform: scale(1.08);
-        box-shadow: 0 16px 28px rgba(20, 16, 46, 0.45);
-        filter: brightness(1.08);
+      .fab-base {
+        position: absolute;
+        inset: 0;
+        background-color: #020617; /* Navy 950 */
+        border-radius: 16px;
+        border: 2px solid #1e293b;
+        padding-bottom: 6px;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+        transition: padding-bottom 0.1s ease-in-out;
+      }
+
+      .fab-top {
+        height: 100%;
+        background: linear-gradient(135deg, #1e293b, #0f172a); /* Slate 800 to Slate 900 */
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-6px);
+        transition: transform 0.1s ease-in-out, background 0.2s ease;
+      }
+
+      .fab-top svg {
+        width: 28px;
+        height: 28px;
+        color: #fbbf24; /* Amber 400 (Gold) */
+        filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.35));
+      }
+
+      .hacktrack-fab:active .fab-base {
+        padding-bottom: 0;
+      }
+
+      .hacktrack-fab:active .fab-top {
+        transform: translateY(0);
+      }
+
+      .hacktrack-fab:hover .fab-top {
+        filter: brightness(1.1);
       }
 
       .hacktrack-preview {
@@ -1004,9 +1084,16 @@ function injectUi() {
       }
     </style>
 
-    <button class="hacktrack-fab" type="button" aria-label="Save hackathon">🚀</button>
+    <div class="hacktrack-fab" type="button" aria-label="Save hackathon">
+      <div class="fab-base">
+        <div class="fab-top">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        </div>
+      </div>
+    </div>
 
     <section class="hacktrack-preview" aria-live="polite">
+      <div id="save-success-msg" class="hidden absolute inset-0 bg-emerald-600/95 flex items-center justify-center rounded-2xl z-20 text-white font-bold text-lg">Saved! ✓</div>
       <p class="title" data-preview="title"></p>
       <div class="row" data-row="deadline"><span class="label">📅 Deadline</span><span class="value" data-preview="deadline"></span></div>
       <div class="row" data-row="prize"><span class="label">💰 Prize Pool</span><span class="value" data-preview="prize"></span></div>
@@ -1019,6 +1106,7 @@ function injectUi() {
   `;
 
   const fabButton = shadowRoot.querySelector(".hacktrack-fab");
+  const fabTop = shadowRoot.querySelector(".fab-top");
   const preview = shadowRoot.querySelector(".hacktrack-preview");
 
   updateFabOffset(root);
@@ -1044,7 +1132,7 @@ function injectUi() {
     }
 
     if (action === "save") {
-      await saveFromPreview(root, fabButton);
+      await saveFromPreview(root, fabTop);
     }
   });
 
@@ -1091,6 +1179,21 @@ function injectUi() {
 
   window.setTimeout(() => updateFabOffset(root), 1200);
   requestVisible();
+
+  // Background Detection Pass (Performance optimization)
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(async () => {
+      if (!state.extractedData) {
+        state.extractedData = await detectHackathonData();
+      }
+    }, { timeout: 3000 });
+  } else {
+    window.setTimeout(async () => {
+      if (!state.extractedData) {
+        state.extractedData = await detectHackathonData();
+      }
+    }, 2000);
+  }
 }
 
 if (isHackathonPage()) {

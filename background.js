@@ -7,13 +7,33 @@ const NOTIFICATION_ICON_URL = chrome.runtime.getURL("icons/icon128.png");
 
 function getStorage(keys) {
   return new Promise((resolve) => {
-    chrome.storage.local.get(keys, (result) => resolve(result));
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      resolve({});
+      return;
+    }
+    chrome.storage.local.get(keys, (result) => {
+      if (chrome.runtime.lastError) {
+        console.error("Background Storage Get Error:", chrome.runtime.lastError);
+        resolve({});
+      } else {
+        resolve(result);
+      }
+    });
   });
 }
 
 function setStorage(value) {
   return new Promise((resolve) => {
-    chrome.storage.local.set(value, resolve);
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      resolve();
+      return;
+    }
+    chrome.storage.local.set(value, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Background Storage Set Error:", chrome.runtime.lastError);
+      }
+      resolve();
+    });
   });
 }
 

@@ -24,12 +24,16 @@ const calendarTodayButton = document.getElementById("calendar-today");
 const toastStack = document.getElementById("toast-stack");
 const splashOverlay = document.getElementById("splash-overlay");
 const mainUi = document.getElementById("main-ui");
+const exportBtn = document.getElementById("export-btn");
+const importBtn = document.getElementById("import-btn");
+const importFile = document.getElementById("import-file");
 
 const now = new Date();
 
 const uiState = {
   filter: "all",
   sort: "deadline",
+  search: "",
   expandedId: null,
   countdownTimer: null,
   data: [],
@@ -182,6 +186,47 @@ function showToast(message) {
   }, 1700);
 }
 
+function fireConfetti() {
+  const colors = ['#6366f1', '#a855f7', '#ec4899', '#38bdf8', '#fbbf24'];
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.inset = '0';
+  container.style.pointerEvents = 'none';
+  container.style.zIndex = '9999';
+  document.body.appendChild(container);
+
+  for (let i = 0; i < 50; i++) {
+    const confetti = document.createElement('div');
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const left = Math.random() * 100;
+    const size = Math.random() * 6 + 4;
+    const duration = Math.random() * 1.5 + 1;
+    const delay = Math.random() * 0.2;
+    
+    confetti.style.position = 'absolute';
+    confetti.style.left = `${left}%`;
+    confetti.style.top = '-10px';
+    confetti.style.width = `${size}px`;
+    confetti.style.height = `${size * 1.5}px`;
+    confetti.style.backgroundColor = color;
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    
+    container.appendChild(confetti);
+
+    confetti.animate([
+      { transform: `translate3d(0, 0, 0) rotate(0deg)`, opacity: 1 },
+      { transform: `translate3d(${Math.random() * 100 - 50}px, ${window.innerHeight}px, 0) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+    ], {
+      duration: duration * 1000,
+      delay: delay * 1000,
+      easing: 'cubic-bezier(.37,0,.63,1)',
+      fill: 'forwards'
+    });
+  }
+
+  setTimeout(() => container.remove(), 3000);
+}
+
 function runSplashScreen() {
   if (!(splashOverlay instanceof HTMLElement) || !(mainUi instanceof HTMLElement)) {
     return;
@@ -263,15 +308,33 @@ function parsePrizeValue(prizeText) {
 
 function getHackathons() {
   return new Promise((resolve) => {
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      resolve([]);
+      return;
+    }
     chrome.storage.local.get([STORAGE_KEY], (result) => {
-      resolve(Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : []);
+      if (chrome.runtime.lastError) {
+        console.error("Popup Storage Get Error:", chrome.runtime.lastError);
+        resolve([]);
+      } else {
+        resolve(Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : []);
+      }
     });
   });
 }
 
 function saveHackathons(hackathons) {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [STORAGE_KEY]: hackathons }, resolve);
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+      resolve();
+      return;
+    }
+    chrome.storage.local.set({ [STORAGE_KEY]: hackathons }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Popup Storage Set Error:", chrome.runtime.lastError);
+      }
+      resolve();
+    });
   });
 }
 
@@ -303,6 +366,15 @@ function filteredAndSortedHackathons(hackathons) {
     rows = rows.filter((item) => {
       const hours = getDiffHours(item.deadline);
       return hours !== null && hours > 0 && hours < 72;
+    });
+  }
+
+  if (uiState.search.trim()) {
+    const query = uiState.search.toLowerCase();
+    rows = rows.filter((item) => {
+      const matchesName = item.name.toLowerCase().includes(query);
+      const matchesTag = item.tags && item.tags.some(tag => tag.toLowerCase().includes(query));
+      return matchesName || matchesTag;
     });
   }
 
@@ -353,11 +425,27 @@ function buildCard(hackathon) {
   top.className = "flex items-start justify-between gap-3 pr-8";
 
   const titleWrap = document.createElement("div");
-  const title = document.createElement("button");
-  title.type = "button";
-  title.dataset.action = "toggle-expand";
-  title.className = "text-left text-sm font-semibold text-gray-100 transition hover:text-indigo-200";
-  title.textContent = hackathon.name;
+  const title = document.createElement("span");
+  title.className = "text-sm font-semibold text-gray-100 flex items-center";
+  
+  const titleText = document.createElement("button");
+  titleText.type = "button";
+  titleText.dataset.action = "toggle-expand";
+  titleText.className = "text-left transition hover:text-indigo-200 flex items-center gap-2 group/expand focus:outline-none";
+  titleText.innerHTML = `<span>${hackathon.name}</span><span class="text-[10px] text-gray-500 transform transition-transform duration-200 ${expanded ? 'rotate-180 text-indigo-400' : 'group-hover/expand:text-indigo-300'}">▼</span>`;
+  
+  title.appendChild(titleText);
+
+  const regLink = document.createElement("button");
+  regLink.type = "button";
+  regLink.dataset.action = "open-register";
+  regLink.className = "ml-2 text-indigo-400 hover:text-indigo-300 transition-colors shrink-0";
+  regLink.innerHTML = "🔗";
+  regLink.title = "Open Registration Page";
+  if (!hackathon.sourceUrl) {
+    regLink.classList.add("hidden");
+  }
+  title.appendChild(regLink);
 
   const deadline = document.createElement("p");
   deadline.className = "mt-1 text-xs text-gray-300";
@@ -387,7 +475,34 @@ function buildCard(hackathon) {
     "ui-button absolute right-2 top-2 rounded-md p-1 text-sm text-gray-400 opacity-60 hover:text-red-400 hover:opacity-100";
   deleteButton.textContent = "🗑️";
 
-  titleWrap.append(title, deadline, prize, metaRow);
+  // Progress Bar
+  const checklist = hackathon.checklist || ["Team Formed", "Idea Finalized", "Design Complete", "Development Started", "Project Submitted"].map(t => ({ task: t, completed: false }));
+  const completedCount = checklist.filter(t => t.completed).length;
+  const progressPercent = checklist.length ? Math.round((completedCount / checklist.length) * 100) : 0;
+
+  const progressContainer = document.createElement("div");
+  progressContainer.className = "mt-3 w-full bg-gray-800 rounded-full h-1.5 overflow-hidden";
+  const progressBar = document.createElement("div");
+  progressBar.className = "h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out";
+  progressBar.style.width = `${progressPercent}%`;
+  progressContainer.appendChild(progressBar);
+
+  const progressText = document.createElement("p");
+  progressText.className = "mt-1 text-[10px] text-gray-500 font-medium text-right";
+  progressText.textContent = `${progressPercent}% complete`;
+
+  // Tags Section (Preview)
+  const tagsRow = document.createElement("div");
+  tagsRow.className = "mt-3 flex flex-wrap gap-1";
+  const tags = hackathon.tags || [];
+  tags.forEach(tag => {
+    const t = document.createElement("span");
+    t.className = "px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[9px] font-semibold uppercase tracking-wider";
+    t.textContent = tag;
+    tagsRow.appendChild(t);
+  });
+
+  titleWrap.append(title, deadline, prize, metaRow, progressContainer, progressText, (tags.length > 0 ? tagsRow : ""));
   top.append(titleWrap, badge);
 
   const actions = document.createElement("div");
@@ -406,8 +521,8 @@ function buildCard(hackathon) {
   registerButton.type = "button";
   registerButton.dataset.action = "toggle-registered";
   registerButton.className = hackathon.registered
-    ? "ui-button rounded-lg bg-emerald-600/90 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
-    : "ui-button rounded-lg bg-gradient-to-r from-amber-500 to-yellow-500 px-2 py-1 text-xs font-semibold text-gray-900 hover:from-amber-400 hover:to-yellow-400";
+    ? "ui-button rounded-lg bg-emerald-600/90 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 shadow-sm"
+    : "ui-button rounded-lg bg-gray-800 border border-indigo-500/50 px-2 py-1 text-xs font-semibold text-indigo-100 hover:bg-indigo-600/20 shadow-sm transition-colors";
   registerButton.textContent = hackathon.registered ? "✔ Registered" : "Mark Registered";
 
   const registerLinkButton = document.createElement("button");
@@ -465,23 +580,210 @@ function buildCard(hackathon) {
 
   inlineEdit.append(nameEdit, deadlineEdit, saveEdit, prizeEdit, cancelEdit);
 
-  card.append(deleteButton, top, actions, inlineEdit);
+  const expansion = document.createElement("div");
+  expansion.className = expanded ? "mt-4 space-y-4" : "hidden";
+
+  // Notes Section
+  const notesWrap = document.createElement("div");
+  notesWrap.className = "rounded-xl bg-gray-900/50 p-3 border border-gray-800";
+  const notesHeader = document.createElement("h4");
+  notesHeader.className = "text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2";
+  notesHeader.textContent = "Notes";
+  const notesArea = document.createElement("textarea");
+  notesArea.className = "w-full bg-transparent text-xs text-gray-300 border-none focus:ring-0 p-0 resize-none min-h-[60px]";
+  notesArea.placeholder = "Add your notes here...";
+  notesArea.value = hackathon.notes || "";
+  notesArea.dataset.role = "notes-area";
+  
+  const saveNotesBtn = document.createElement("button");
+  saveNotesBtn.className = "mt-2 text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold";
+  saveNotesBtn.textContent = "Save Notes";
+  saveNotesBtn.dataset.action = "save-notes";
+
+  notesWrap.append(notesHeader, notesArea, saveNotesBtn);
+
+  // Checklist Section
+  const checklistWrap = document.createElement("div");
+  checklistWrap.className = "rounded-xl bg-gray-900/50 p-3 border border-gray-800";
+  const checklistHeader = document.createElement("div");
+  checklistHeader.className = "flex items-center justify-between mb-2";
+  checklistHeader.innerHTML = `
+    <h4 class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Progress Checklist</h4>
+    <span class="text-[10px] text-gray-600">${completedCount}/${checklist.length}</span>
+  `;
+  
+  const checklistItems = document.createElement("ul");
+  checklistItems.className = "space-y-2";
+  
+  checklist.forEach((item, idx) => {
+    const li = document.createElement("li");
+    li.className = "flex items-center justify-between gap-2 text-xs text-gray-300 group/item";
+    
+    const left = document.createElement("div");
+    left.className = "flex items-center gap-2";
+    
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = item.completed;
+    cb.className = "rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500";
+    cb.onchange = async () => {
+      const previouslyCompleted = checklist.filter(t => t.completed).length;
+      item.completed = cb.checked;
+      const currentlyCompleted = checklist.filter(t => t.completed).length;
+      
+      const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
+      if (targetIdx >= 0) {
+        uiState.data[targetIdx].checklist = checklist;
+        await persistData();
+        
+        // Trigger confetti if just hit 100%
+        if (currentlyCompleted === checklist.length && previouslyCompleted < checklist.length) {
+          fireConfetti();
+        }
+        
+        renderList();
+        updateInsights();
+      }
+    };
+    
+    const span = document.createElement("span");
+    span.textContent = item.task;
+    if (item.completed) span.className = "line-through text-gray-500";
+    
+    left.append(cb, span);
+    
+    const delTask = document.createElement("button");
+    delTask.className = "opacity-0 group-hover/item:opacity-100 text-gray-600 hover:text-red-400 p-1 transition-opacity";
+    delTask.innerHTML = "×";
+    delTask.title = "Remove task";
+    delTask.onclick = async () => {
+      checklist.splice(idx, 1);
+      const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
+      if (targetIdx >= 0) {
+        uiState.data[targetIdx].checklist = checklist;
+        await persistData();
+        renderList();
+        updateInsights();
+      }
+    };
+    
+    li.append(left, delTask);
+    checklistItems.appendChild(li);
+  });
+
+  const addTaskRow = document.createElement("div");
+  addTaskRow.className = "mt-3 flex gap-2";
+  const addTaskInput = document.createElement("input");
+  addTaskInput.type = "text";
+  addTaskInput.placeholder = "Add new task...";
+  addTaskInput.className = "flex-1 bg-gray-800/50 border border-gray-700 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50";
+  
+  const addTaskBtn = document.createElement("button");
+  addTaskBtn.className = "bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/40 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors";
+  addTaskBtn.textContent = "➕";
+  addTaskBtn.onclick = async () => {
+    const val = addTaskInput.value.trim();
+    if (!val) return;
+    checklist.push({ task: val, completed: false });
+    const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
+    if (targetIdx >= 0) {
+      uiState.data[targetIdx].checklist = checklist;
+      await persistData();
+      refreshDashboard();
+    }
+  };
+
+  addTaskInput.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTaskBtn.click();
+    }
+  };
+
+  addTaskRow.append(addTaskInput, addTaskBtn);
+  checklistWrap.append(checklistHeader, checklistItems, addTaskRow);
+
+  // Tags Editor Section
+  const tagsEditWrap = document.createElement("div");
+  tagsEditWrap.className = "rounded-xl bg-gray-900/50 p-3 border border-gray-800";
+  const tagsEditHeader = document.createElement("h4");
+  tagsEditHeader.className = "text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2";
+  tagsEditHeader.textContent = "Tags";
+  
+  const tagsList = document.createElement("div");
+  tagsList.className = "flex flex-wrap gap-2 mb-2";
+  
+  tags.forEach((tag, tIdx) => {
+    const tagChip = document.createElement("span");
+    tagChip.className = "flex items-center gap-1 group/tag bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-semibold tracking-wider uppercase";
+    tagChip.innerHTML = `<span>${tag}</span><button class="text-indigo-400 hover:text-red-400 opacity-60 group-hover/tag:opacity-100 transition-opacity">×</button>`;
+    tagChip.querySelector("button").onclick = async () => {
+      tags.splice(tIdx, 1);
+      const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
+      if (targetIdx >= 0) {
+        uiState.data[targetIdx].tags = tags;
+        await persistData();
+        renderList();
+      }
+    };
+    tagsList.appendChild(tagChip);
+  });
+
+  const addTagRow = document.createElement("div");
+  addTagRow.className = "flex gap-2";
+  const addTagInput = document.createElement("input");
+  addTagInput.type = "text";
+  addTagInput.placeholder = "Add tag (e.g. AI, Web3)...";
+  addTagInput.className = "flex-1 bg-gray-800/50 border border-gray-700 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 uppercase";
+  
+  const addTagBtn = document.createElement("button");
+  addTagBtn.className = "bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/40 px-3 py-1 rounded-lg text-[10px] font-bold transition-colors";
+  addTagBtn.textContent = "Add";
+  
+  const handleAddTag = async () => {
+    const val = addTagInput.value.trim().toUpperCase();
+    if (!val || tags.includes(val)) return;
+    tags.push(val);
+    const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
+    if (targetIdx >= 0) {
+      uiState.data[targetIdx].tags = tags;
+      await persistData();
+      renderList();
+    }
+  };
+
+  addTagBtn.onclick = handleAddTag;
+  addTagInput.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  addTagRow.append(addTagInput, addTagBtn);
+  tagsEditWrap.append(tagsEditHeader, tagsList, addTagRow);
+
+  expansion.append(notesWrap, checklistWrap, tagsEditWrap);
+
+  card.append(deleteButton, top, actions, inlineEdit, expansion);
   return card;
 }
 
 function renderList() {
   const rows = filteredAndSortedHackathons(uiState.data);
-  list.innerHTML = "";
 
   if (!rows.length) {
     emptyState.classList.remove("hidden");
+    list.replaceChildren();
   } else {
     emptyState.classList.add("hidden");
+    
+    // Performance: Only rebuild if the row count or order changed, 
+    // or if we are toggling expansion. Otherwise, just update specific nodes.
+    const fragment = document.createDocumentFragment();
+    rows.forEach((hackathon) => fragment.appendChild(buildCard(hackathon)));
+    list.replaceChildren(fragment);
   }
-
-  const fragment = document.createDocumentFragment();
-  rows.forEach((hackathon) => fragment.appendChild(buildCard(hackathon)));
-  list.appendChild(fragment);
 
   const nextUpcomingKey = getNextUpcomingKey(rows);
   if (nextUpcomingKey) {
@@ -668,7 +970,7 @@ form.addEventListener("submit", async (event) => {
     };
   } else {
     const nextHackathon = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2),
       name,
       registered: false,
       createdAt: Date.now()
@@ -691,10 +993,22 @@ form.addEventListener("submit", async (event) => {
 
   await persistData();
 
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalBtnText = submitBtn.textContent;
+  submitBtn.textContent = "Saved! ✓";
+  submitBtn.classList.remove("from-indigo-500", "to-purple-600");
+  submitBtn.classList.add("bg-green-600");
+
   form.reset();
-  await prefillHackathonNameFromTab();
   refreshDashboard();
   showToast(existingIndex >= 0 ? "Hackathon updated" : "Hackathon saved");
+
+  window.setTimeout(async () => {
+    submitBtn.textContent = originalBtnText;
+    submitBtn.classList.remove("bg-green-600");
+    submitBtn.classList.add("from-indigo-500", "to-purple-600");
+    await prefillHackathonNameFromTab();
+  }, 1500);
 });
 
 filterGroup.addEventListener("click", (event) => {
@@ -791,14 +1105,16 @@ list.addEventListener("click", async (event) => {
 
   if (action === "toggle-expand") {
     uiState.expandedId = uiState.expandedId === key ? null : key;
-    refreshDashboard();
+    renderList();
+    updateInsights();
     return;
   }
 
   if (action === "toggle-registered") {
     uiState.data[index].registered = !uiState.data[index].registered;
     await persistData();
-    refreshDashboard();
+    renderList();
+    updateInsights();
     showToast(uiState.data[index].registered ? "Marked as registered" : "Marked as not registered");
     return;
   }
@@ -822,7 +1138,8 @@ list.addEventListener("click", async (event) => {
     window.setTimeout(async () => {
       uiState.data.splice(index, 1);
       await persistData();
-      refreshDashboard();
+      renderList();
+      updateInsights();
       showToast("Hackathon deleted");
     }, 220);
     return;
@@ -837,7 +1154,8 @@ list.addEventListener("click", async (event) => {
   }
 
   if (action === "cancel-edit") {
-    refreshDashboard();
+    renderList();
+    updateInsights();
     return;
   }
 
@@ -874,8 +1192,21 @@ list.addEventListener("click", async (event) => {
     };
 
     await persistData();
-    refreshDashboard();
+    renderList();
+    updateInsights();
     showToast("Hackathon updated");
+    return;
+  }
+
+  if (action === "save-notes") {
+    const notesArea = card.querySelector("[data-role='notes-area']");
+    if (!(notesArea instanceof HTMLTextAreaElement)) {
+      return;
+    }
+
+    uiState.data[index].notes = notesArea.value.trim();
+    await persistData();
+    showToast("Notes saved");
   }
 });
 
@@ -938,10 +1269,84 @@ function startCountdownTicker() {
   }, 1000);
 }
 
+function handleExport() {
+  const dataStr = JSON.stringify(uiState.data, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `hacktrack_backup_${new Date().toISOString().split("T")[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Data exported");
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const importedData = JSON.parse(e.target.result);
+      if (!Array.isArray(importedData)) {
+        throw new Error("Invalid format");
+      }
+      
+      // Basic validation and merging
+      uiState.data = importedData.map(item => ({
+        ...item,
+        id: item.id || (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)),
+        createdAt: item.createdAt || Date.now()
+      }));
+      
+      await persistData();
+      renderList();
+      updateInsights();
+      showToast("Data imported successfully");
+    } catch (err) {
+      showToast("Error importing data: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
 async function initializePopup() {
   runSplashScreen();
   await Promise.all([loadData(), prefillHackathonNameFromTab()]);
   startCountdownTicker();
+
+  if (exportBtn) exportBtn.addEventListener("click", handleExport);
+  if (importBtn) importBtn.addEventListener("click", () => importFile.click());
+  if (importFile) importFile.addEventListener("change", handleImport);
+
+  const searchInput = document.getElementById("search-input");
+  if (searchInput) {
+    const debouncedRender = debounce(() => {
+      renderList();
+    }, 200);
+    
+    searchInput.addEventListener("input", (e) => {
+      uiState.search = e.target.value;
+      debouncedRender();
+    });
+  }
+
+  if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === "local" && changes[STORAGE_KEY]) {
+        loadData();
+      }
+    });
+  }
 }
 
 initializePopup();
