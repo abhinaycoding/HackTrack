@@ -27,6 +27,7 @@ const mainUi = document.getElementById("main-ui");
 const exportBtn = document.getElementById("export-btn");
 const importBtn = document.getElementById("import-btn");
 const importFile = document.getElementById("import-file");
+const clearClosedBtn = document.getElementById("clear-closed-btn");
 
 const now = new Date();
 
@@ -188,7 +189,7 @@ function showToast(message) {
 }
 
 function fireConfetti() {
-  const colors = ['#6366f1', '#a855f7', '#ec4899', '#38bdf8', '#fbbf24'];
+  const colors = ['#fbbf24', '#f59e0b', '#d97706', '#fcd34d', '#fde68a'];
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.inset = '0';
@@ -281,14 +282,14 @@ function getNextUpcomingKey(hackathons) {
 
 function countdownClass(tone) {
   if (tone === "red") {
-    return "rounded-full border border-red-400/40 bg-red-500/20 px-2 py-1 text-xs font-semibold text-red-200";
+    return "rounded-full border border-red-400/40 bg-red-500/20 px-2 py-0.5 text-[9px] font-bold text-red-300";
   }
 
   if (tone === "yellow") {
-    return "rounded-full border border-yellow-400/40 bg-yellow-500/20 px-2 py-1 text-xs font-semibold text-yellow-200";
+    return "rounded-full border border-yellow-400/50 bg-gradient-to-r from-yellow-500/25 to-amber-500/15 px-2 py-0.5 text-[9px] font-bold text-yellow-300";
   }
 
-  return "rounded-full border border-emerald-400/40 bg-emerald-500/20 px-2 py-1 text-xs font-semibold text-emerald-200";
+  return "rounded-full border border-emerald-400/40 bg-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-300";
 }
 
 function parsePrizeValue(prizeText) {
@@ -408,11 +409,37 @@ function filteredAndSortedHackathons(hackathons) {
 }
 
 function updateFilterChips() {
+  const counts = {
+    all: uiState.data.length,
+    registered: uiState.data.filter((item) => item.registered).length,
+    not_registered: uiState.data.filter((item) => !item.registered).length,
+    ending_soon: uiState.data.filter((item) => {
+      const hours = getDiffHours(item.deadline);
+      return hours !== null && hours > 0 && hours < 72;
+    }).length
+  };
+
   filterGroup.querySelectorAll(".filter-chip").forEach((chip) => {
+    const filterKey = chip.dataset.filter || "all";
+    const label = chip.dataset.label || chip.textContent.trim();
+    const count = counts[filterKey] || 0;
+    const previousCount = Number(chip.dataset.badgeCount ?? count);
     const isActive = chip.dataset.filter === uiState.filter;
     chip.className = isActive
-      ? "filter-chip ui-button pulse-chip rounded-full border border-indigo-400/40 bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-200"
-      : "filter-chip ui-button pulse-chip rounded-full border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-200";
+      ? "filter-chip active ui-button pulse-chip inline-flex items-center gap-1 rounded-full border border-yellow-500/50 bg-gradient-to-r from-yellow-500/20 to-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-yellow-300 shadow-[0_0_15px_rgba(251,191,36,0.15)]"
+      : "filter-chip ui-button pulse-chip inline-flex items-center gap-1 rounded-full border border-gray-700/80 bg-gray-800/50 px-2.5 py-1 text-[10px] font-semibold text-gray-300 hover:border-yellow-500/30 hover:bg-yellow-500/5";
+
+    chip.textContent = "";
+    const labelNode = document.createElement("span");
+    labelNode.textContent = label;
+    const countBadge = document.createElement("span");
+    countBadge.className = "filter-chip-badge";
+    countBadge.textContent = String(count);
+    if (previousCount !== count) {
+      countBadge.classList.add("bump");
+    }
+    chip.dataset.badgeCount = String(count);
+    chip.append(labelNode, countBadge);
   });
 }
 
@@ -425,31 +452,31 @@ function buildCard(hackathon, nextUpcomingKey) {
 
   card.dataset.hackathonKey = key;
   card.className =
-    "glass card-hover group relative rounded-2xl border border-slate-700/80 p-4 shadow-lg";
+    "glass card-hover group relative rounded-xl border border-yellow-500/10 p-3 shadow-md transition-all duration-300 hover:shadow-[0_10px_30px_rgba(0,0,0,0.3),0_0_20px_rgba(251,191,36,0.06)]";
   if (nextUpcomingKey && key === nextUpcomingKey) {
     card.classList.add("next-upcoming-highlight");
   }
 
   const top = document.createElement("div");
-  top.className = "flex items-start justify-between gap-3 pr-8";
+  top.className = "flex items-start justify-between gap-2 pr-6";
 
   const titleWrap = document.createElement("div");
   titleWrap.className = "min-w-0 flex-1";
   const title = document.createElement("span");
-  title.className = "text-sm font-semibold text-gray-100 flex items-center min-w-0";
-  
+  title.className = "text-xs font-bold text-gray-100 flex items-center min-w-0";
+
   const titleText = document.createElement("button");
   titleText.type = "button";
   titleText.dataset.action = "toggle-expand";
-  titleText.className = "text-left transition hover:text-indigo-200 flex items-start gap-2 group/expand focus:outline-none min-w-0 flex-1";
-  titleText.innerHTML = `<span class="block min-w-0 break-words leading-snug">${hackathon.name}</span><span class="shrink-0 pt-[1px] text-[10px] text-gray-500 transform transition-transform duration-200 ${expanded ? 'rotate-180 text-indigo-400' : 'group-hover/expand:text-indigo-300'}">▼</span>`;
-  
+  titleText.className = "text-left transition hover:text-yellow-300 flex items-start gap-1.5 group/expand focus:outline-none min-w-0 flex-1";
+  titleText.innerHTML = `<span class="block min-w-0 break-words leading-snug line-clamp-2">${hackathon.name}</span><span class="shrink-0 pt-[1px] text-[9px] text-gray-500 transform transition-transform duration-200 ${expanded ? 'rotate-180 text-yellow-400' : 'group-hover/expand:text-yellow-400'}">▼</span>`;
+
   title.appendChild(titleText);
 
   const regLink = document.createElement("button");
   regLink.type = "button";
   regLink.dataset.action = "open-register";
-  regLink.className = "ml-2 text-indigo-400 hover:text-indigo-300 transition-colors shrink-0";
+  regLink.className = "ml-1 text-yellow-500 hover:text-yellow-400 transition-colors shrink-0 text-[10px]";
   regLink.innerHTML = "🔗";
   regLink.title = "Open Registration Page";
   if (!hackathon.sourceUrl) {
@@ -457,24 +484,20 @@ function buildCard(hackathon, nextUpcomingKey) {
   }
   title.appendChild(regLink);
 
-  const deadline = document.createElement("p");
-  deadline.className = "mt-2 text-xs text-gray-300";
-  deadline.textContent = `📅 ${formatDeadline(hackathon.deadline)}`;
-
-  const prize = document.createElement("p");
-  prize.className = "mt-1 text-xs text-gray-300";
-  prize.textContent = `💰 ${hackathon.prize || "Not detected"}`;
+  const metaLine = document.createElement("div");
+  metaLine.className = "mt-1.5 flex items-center gap-2 text-[10px] text-gray-400";
+  metaLine.innerHTML = `<span class="text-yellow-500/70">📅</span>${formatDeadline(hackathon.deadline)} <span class="text-yellow-500/70 ml-1">💰</span>${hackathon.prize || "N/A"}`;
 
   const statusPill = document.createElement("span");
-  statusPill.className = status.className;
+  statusPill.className = status.className + " text-[8px] px-1.5 py-0.5";
   statusPill.textContent = status.label;
 
   const metaRow = document.createElement("div");
-  metaRow.className = "mt-3 flex items-center gap-2";
+  metaRow.className = "mt-2 flex items-center gap-1.5";
   metaRow.appendChild(statusPill);
 
   const badge = document.createElement("span");
-  badge.className = `${countdownClass(countdown.tone)} shrink-0 whitespace-nowrap self-start`;
+  badge.className = `${countdownClass(countdown.tone)} shrink-0 whitespace-nowrap self-start text-[9px] px-2 py-0.5`;
   badge.dataset.role = "countdown";
   badge.textContent = `⏳ ${countdown.label}`;
 
@@ -482,7 +505,7 @@ function buildCard(hackathon, nextUpcomingKey) {
   deleteButton.type = "button";
   deleteButton.dataset.action = "delete";
   deleteButton.className =
-    "ui-button absolute right-2 top-2 rounded-md p-1 text-sm text-gray-400 opacity-60 hover:text-red-400 hover:opacity-100";
+    "ui-button absolute right-2 top-2 rounded p-1 text-[10px] text-gray-500 opacity-40 hover:text-red-400 hover:opacity-100 hover:bg-red-500/10 transition-all";
   deleteButton.textContent = "🗑️";
 
   // Progress Bar
@@ -491,57 +514,64 @@ function buildCard(hackathon, nextUpcomingKey) {
   const progressPercent = checklist.length ? Math.round((completedCount / checklist.length) * 100) : 0;
 
   const progressContainer = document.createElement("div");
-  progressContainer.className = "mt-3 w-full bg-gray-800/80 rounded-full h-2 overflow-hidden";
+  progressContainer.className = "mt-2 w-full bg-gray-800/60 rounded-full h-1.5 overflow-hidden border border-yellow-500/10";
   const progressBar = document.createElement("div");
-  progressBar.className = "h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500 ease-out";
+  progressBar.className = "h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(251,191,36,0.3)]";
   progressBar.style.width = `${progressPercent}%`;
   progressContainer.appendChild(progressBar);
 
-  const progressText = document.createElement("p");
-  progressText.className = "mt-1 text-[10px] text-gray-400 font-semibold text-right";
-  progressText.textContent = `${progressPercent}% complete`;
-
-  // Tags Section (Preview)
-  const tagsRow = document.createElement("div");
-  tagsRow.className = "mt-3 flex flex-wrap gap-1";
+  // Tags Section (Preview) - show only first 2 tags
   const tags = hackathon.tags || [];
-  tags.forEach(tag => {
-    const t = document.createElement("span");
-    t.className = "px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[9px] font-semibold uppercase tracking-wider";
-    t.textContent = tag;
-    tagsRow.appendChild(t);
-  });
+  let tagsEl = "";
+  if (tags.length > 0) {
+    const tagsRow = document.createElement("div");
+    tagsRow.className = "mt-2 flex flex-wrap gap-1";
+    tags.slice(0, 2).forEach(tag => {
+      const t = document.createElement("span");
+      t.className = "px-1.5 py-0.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/90 text-[8px] font-bold uppercase tracking-wider";
+      t.textContent = tag;
+      tagsRow.appendChild(t);
+    });
+    if (tags.length > 2) {
+      const more = document.createElement("span");
+      more.className = "text-[8px] text-gray-500";
+      more.textContent = `+${tags.length - 2}`;
+      tagsRow.appendChild(more);
+    }
+    tagsEl = tagsRow;
+  }
 
-  titleWrap.append(title, deadline, prize, metaRow, progressContainer, progressText, (tags.length > 0 ? tagsRow : ""));
+  titleWrap.append(title, metaLine, metaRow, progressContainer);
+  if (tagsEl) titleWrap.appendChild(tagsEl);
   top.append(titleWrap, badge);
 
   const actions = document.createElement("div");
   actions.className = expanded
-    ? "mt-4 flex flex-wrap items-center gap-2"
-    : "mt-4 hidden flex-wrap items-center gap-2 group-hover:flex";
+    ? "mt-3 flex flex-wrap items-center gap-1.5"
+    : "mt-3 hidden flex-wrap items-center gap-1.5 group-hover:flex";
 
   const editButton = document.createElement("button");
   editButton.type = "button";
   editButton.dataset.action = "edit";
   editButton.className =
-    "ui-button rounded-lg bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-100 hover:bg-gray-700";
+    "ui-button rounded bg-gray-800/80 border border-gray-700/50 px-2 py-1 text-[10px] font-semibold text-gray-200 hover:bg-gray-700 hover:border-yellow-500/30 transition-all";
   editButton.textContent = "✏️ Edit";
 
   const registerButton = document.createElement("button");
   registerButton.type = "button";
   registerButton.dataset.action = "toggle-registered";
   registerButton.className = hackathon.registered
-    ? "ui-button rounded-lg bg-emerald-600/90 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 shadow-sm"
-    : "ui-button rounded-lg bg-gray-800 border border-indigo-500/50 px-2 py-1 text-xs font-semibold text-indigo-100 hover:bg-indigo-600/20 shadow-sm transition-colors";
-  registerButton.textContent = hackathon.registered ? "✔ Registered" : "Mark Registered";
+    ? "ui-button rounded bg-emerald-600/90 px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)] transition-all"
+    : "ui-button rounded bg-gray-800/80 border border-yellow-500/40 px-2 py-1 text-[10px] font-semibold text-yellow-300 hover:bg-yellow-500/10 transition-all";
+  registerButton.textContent = hackathon.registered ? "✔ Reg" : "Mark Reg";
 
   const registerLinkButton = document.createElement("button");
   registerLinkButton.type = "button";
   registerLinkButton.dataset.action = "open-register";
   registerLinkButton.className = hackathon.sourceUrl
-    ? "ui-button rounded-lg bg-indigo-600/90 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-500"
-    : "ui-button rounded-lg bg-gray-700/70 px-2 py-1 text-xs font-semibold text-gray-400 cursor-not-allowed";
-  registerLinkButton.textContent = "Register";
+    ? "ui-button rounded bg-gradient-to-r from-yellow-600 to-yellow-500 px-2 py-1 text-[10px] font-bold text-gray-900 hover:from-yellow-500 hover:to-yellow-400 shadow-[0_2px_10px_rgba(251,191,36,0.25)] transition-all"
+    : "ui-button rounded bg-gray-700/50 px-2 py-1 text-[10px] font-semibold text-gray-500 cursor-not-allowed";
+  registerLinkButton.textContent = "Open";
   if (!hackathon.sourceUrl) {
     registerLinkButton.disabled = true;
   }
@@ -550,27 +580,27 @@ function buildCard(hackathon, nextUpcomingKey) {
 
   const inlineEdit = document.createElement("div");
   inlineEdit.dataset.role = "inline-edit";
-  inlineEdit.className = "mt-3 hidden grid grid-cols-1 gap-2 sm:grid-cols-6";
+  inlineEdit.className = "mt-2 hidden grid grid-cols-6 gap-1.5";
 
   const nameEdit = document.createElement("input");
   nameEdit.type = "text";
   nameEdit.value = hackathon.name;
   nameEdit.dataset.role = "edit-name";
   nameEdit.className =
-    "ui-input col-span-3 rounded-lg border bg-gray-900/80 px-2 py-1 text-xs text-white focus:outline-none";
+    "ui-input col-span-3 rounded border border-yellow-500/20 bg-gray-900/80 px-2 py-1 text-[10px] text-white focus:outline-none focus:border-yellow-500";
 
   const deadlineEdit = document.createElement("input");
   deadlineEdit.type = "date";
   deadlineEdit.value = hackathon.deadline;
   deadlineEdit.dataset.role = "edit-deadline";
   deadlineEdit.className =
-    "ui-input col-span-2 rounded-lg border bg-gray-900/80 px-2 py-1 text-xs text-white focus:outline-none";
+    "ui-input col-span-2 rounded border border-yellow-500/20 bg-gray-900/80 px-2 py-1 text-[10px] text-white focus:outline-none focus:border-yellow-500";
 
   const saveEdit = document.createElement("button");
   saveEdit.type = "button";
   saveEdit.dataset.action = "save-edit";
   saveEdit.className =
-    "ui-button col-span-1 rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-500";
+    "ui-button col-span-1 rounded bg-gradient-to-r from-yellow-600 to-yellow-500 px-2 py-1 text-[10px] font-bold text-gray-900 hover:from-yellow-500 hover:to-yellow-400";
   saveEdit.textContent = "Save";
 
   const prizeEdit = document.createElement("input");
@@ -579,93 +609,92 @@ function buildCard(hackathon, nextUpcomingKey) {
   prizeEdit.placeholder = "Prize";
   prizeEdit.dataset.role = "edit-prize";
   prizeEdit.className =
-    "ui-input col-span-4 rounded-lg border bg-gray-900/80 px-2 py-1 text-xs text-white placeholder-gray-400 focus:outline-none";
+    "ui-input col-span-4 rounded border border-yellow-500/20 bg-gray-900/80 px-2 py-1 text-[10px] text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500";
 
   const cancelEdit = document.createElement("button");
   cancelEdit.type = "button";
   cancelEdit.dataset.action = "cancel-edit";
   cancelEdit.className =
-    "ui-button col-span-2 rounded-lg bg-gray-700 px-2 py-1 text-xs font-semibold text-gray-100 hover:bg-gray-600";
+    "ui-button col-span-2 rounded bg-gray-800 border border-gray-700 px-2 py-1 text-[10px] font-semibold text-gray-300 hover:bg-gray-700";
   cancelEdit.textContent = "Cancel";
 
   inlineEdit.append(nameEdit, deadlineEdit, saveEdit, prizeEdit, cancelEdit);
 
   const expansion = document.createElement("div");
-  expansion.className = expanded ? "mt-4 space-y-4" : "hidden";
+  expansion.className = expanded ? "mt-3 space-y-2" : "hidden";
 
   // Notes Section
   const notesWrap = document.createElement("div");
-  notesWrap.className = "rounded-xl bg-gray-900/50 p-3 border border-gray-800";
+  notesWrap.className = "rounded-lg bg-gray-900/40 p-2 border border-yellow-500/10";
   const notesHeader = document.createElement("h4");
-  notesHeader.className = "text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2";
+  notesHeader.className = "text-[9px] font-bold uppercase tracking-widest text-yellow-500/70 mb-1";
   notesHeader.textContent = "Notes";
   const notesArea = document.createElement("textarea");
-  notesArea.className = "w-full bg-transparent text-xs text-gray-300 border-none focus:ring-0 p-0 resize-none min-h-[60px]";
-  notesArea.placeholder = "Add your notes here...";
+  notesArea.className = "w-full bg-transparent text-[10px] text-gray-300 border-none focus:ring-0 p-0 resize-none min-h-[40px] placeholder-gray-600";
+  notesArea.placeholder = "Add notes...";
   notesArea.value = hackathon.notes || "";
   notesArea.dataset.role = "notes-area";
-  
+
   const saveNotesBtn = document.createElement("button");
-  saveNotesBtn.className = "mt-2 text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold";
-  saveNotesBtn.textContent = "Save Notes";
+  saveNotesBtn.className = "mt-1 text-[9px] text-yellow-400 hover:text-yellow-300 font-bold";
+  saveNotesBtn.textContent = "Save";
   saveNotesBtn.dataset.action = "save-notes";
 
   notesWrap.append(notesHeader, notesArea, saveNotesBtn);
 
   // Checklist Section
   const checklistWrap = document.createElement("div");
-  checklistWrap.className = "rounded-xl bg-gray-900/50 p-3 border border-gray-800";
+  checklistWrap.className = "rounded-lg bg-gray-900/20 p-2 border border-yellow-500/20 backdrop-blur-sm";
   const checklistHeader = document.createElement("div");
   checklistHeader.className = "flex items-center justify-between mb-2";
   checklistHeader.innerHTML = `
-    <h4 class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Progress Checklist</h4>
-    <span class="text-[10px] text-gray-600">${completedCount}/${checklist.length}</span>
+    <h4 class="text-[9px] font-bold uppercase tracking-widest text-yellow-500/70">Checklist</h4>
+    <span class="text-[9px] text-yellow-500/50 font-semibold">${completedCount}/${checklist.length}</span>
   `;
-  
+
   const checklistItems = document.createElement("ul");
-  checklistItems.className = "space-y-2";
-  
+  checklistItems.className = "space-y-1";
+
   checklist.forEach((item, idx) => {
     const li = document.createElement("li");
-    li.className = "flex items-center justify-between gap-2 text-xs text-gray-300 group/item";
-    
+    li.className = "flex items-center justify-between gap-1 text-[10px] text-gray-200 group/item";
+
     const left = document.createElement("div");
-    left.className = "flex items-center gap-2";
-    
+    left.className = "flex items-center gap-1.5";
+
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = item.completed;
-    cb.className = "rounded border-gray-700 bg-gray-800 text-indigo-600 focus:ring-indigo-500";
+    cb.className = "rounded border-yellow-500/40 bg-gray-800/70 text-yellow-400 focus:ring-yellow-500/50 cursor-pointer w-3 h-3";
     cb.onchange = async () => {
       const previouslyCompleted = checklist.filter(t => t.completed).length;
       item.completed = cb.checked;
       const currentlyCompleted = checklist.filter(t => t.completed).length;
-      
+
       const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
       if (targetIdx >= 0) {
         uiState.data[targetIdx].checklist = checklist;
         await persistData();
-        
-        // Trigger confetti if just hit 100%
+
         if (currentlyCompleted === checklist.length && previouslyCompleted < checklist.length) {
           fireConfetti();
         }
-        
+
         renderList();
         updateInsights();
       }
     };
-    
+
     const span = document.createElement("span");
     span.textContent = item.task;
     if (item.completed) span.className = "line-through text-gray-500";
-    
+
     left.append(cb, span);
-    
+
     const delTask = document.createElement("button");
-    delTask.className = "opacity-0 group-hover/item:opacity-100 text-gray-600 hover:text-red-400 p-1 transition-opacity";
+    delTask.className = "opacity-50 group-hover/item:opacity-100 text-gray-500 hover:text-red-400 text-[10px] transition-opacity";
     delTask.innerHTML = "×";
-    delTask.title = "Remove task";
+    delTask.title = "Remove";
     delTask.onclick = async () => {
       checklist.splice(idx, 1);
       const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
@@ -676,21 +705,21 @@ function buildCard(hackathon, nextUpcomingKey) {
         updateInsights();
       }
     };
-    
+
     li.append(left, delTask);
     checklistItems.appendChild(li);
   });
 
   const addTaskRow = document.createElement("div");
-  addTaskRow.className = "mt-3 flex gap-2";
+  addTaskRow.className = "mt-2 flex gap-1";
   const addTaskInput = document.createElement("input");
   addTaskInput.type = "text";
-  addTaskInput.placeholder = "Add new task...";
-  addTaskInput.className = "flex-1 bg-gray-800/50 border border-gray-700 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50";
-  
+  addTaskInput.placeholder = "New task...";
+  addTaskInput.className = "flex-1 bg-gray-800/35 border border-yellow-500/30 rounded px-2 py-1 text-[9px] text-white focus:outline-none placeholder-gray-500";
+
   const addTaskBtn = document.createElement("button");
-  addTaskBtn.className = "bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/40 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors";
-  addTaskBtn.textContent = "➕";
+  addTaskBtn.className = "bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 px-2 py-1 rounded text-[9px] font-bold border border-yellow-500/35";
+  addTaskBtn.textContent = "+";
   addTaskBtn.onclick = async () => {
     const val = addTaskInput.value.trim();
     if (!val) return;
@@ -715,18 +744,18 @@ function buildCard(hackathon, nextUpcomingKey) {
 
   // Tags Editor Section
   const tagsEditWrap = document.createElement("div");
-  tagsEditWrap.className = "rounded-xl bg-gray-900/50 p-3 border border-gray-800";
+  tagsEditWrap.className = "rounded-lg bg-gray-900/40 p-2 border border-yellow-500/10";
   const tagsEditHeader = document.createElement("h4");
-  tagsEditHeader.className = "text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2";
+  tagsEditHeader.className = "text-[9px] font-bold uppercase tracking-widest text-yellow-500/70 mb-1";
   tagsEditHeader.textContent = "Tags";
-  
+
   const tagsList = document.createElement("div");
-  tagsList.className = "flex flex-wrap gap-2 mb-2";
-  
+  tagsList.className = "flex flex-wrap gap-1 mb-2";
+
   tags.forEach((tag, tIdx) => {
     const tagChip = document.createElement("span");
-    tagChip.className = "flex items-center gap-1 group/tag bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-semibold tracking-wider uppercase";
-    tagChip.innerHTML = `<span>${tag}</span><button class="text-indigo-400 hover:text-red-400 opacity-60 group-hover/tag:opacity-100 transition-opacity">×</button>`;
+    tagChip.className = "flex items-center gap-0.5 group/tag bg-yellow-500/10 border border-yellow-500/25 text-yellow-400 px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase";
+    tagChip.innerHTML = `<span>${tag}</span><button class="text-yellow-500/60 hover:text-red-400 opacity-60 group-hover/tag:opacity-100">×</button>`;
     tagChip.querySelector("button").onclick = async () => {
       tags.splice(tIdx, 1);
       const targetIdx = uiState.data.findIndex(h => getHackathonKey(h) === key);
@@ -740,16 +769,16 @@ function buildCard(hackathon, nextUpcomingKey) {
   });
 
   const addTagRow = document.createElement("div");
-  addTagRow.className = "flex gap-2";
+  addTagRow.className = "flex gap-1";
   const addTagInput = document.createElement("input");
   addTagInput.type = "text";
-  addTagInput.placeholder = "Add tag (e.g. AI, Web3)...";
-  addTagInput.className = "flex-1 bg-gray-800/50 border border-gray-700 rounded-lg px-2 py-1 text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50 uppercase";
-  
+  addTagInput.placeholder = "Add tag...";
+  addTagInput.className = "flex-1 bg-gray-800/50 border border-yellow-500/20 rounded px-2 py-1 text-[9px] text-white focus:outline-none uppercase placeholder-gray-600";
+
   const addTagBtn = document.createElement("button");
-  addTagBtn.className = "bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/40 px-3 py-1 rounded-lg text-[10px] font-bold transition-colors";
+  addTagBtn.className = "bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25 px-2 py-1 rounded text-[9px] font-bold border border-yellow-500/20";
   addTagBtn.textContent = "Add";
-  
+
   const handleAddTag = async () => {
     const val = addTagInput.value.trim().toUpperCase();
     if (!val || tags.includes(val)) return;
@@ -1018,9 +1047,9 @@ form.addEventListener("submit", async (event) => {
 
   const submitBtn = form.querySelector('button[type="submit"]');
   const originalBtnText = submitBtn.textContent;
-  submitBtn.textContent = "Saved! ✓";
-  submitBtn.classList.remove("from-indigo-500", "to-purple-600");
-  submitBtn.classList.add("bg-green-600");
+  submitBtn.textContent = "Saved!";
+  submitBtn.classList.remove("from-yellow-600", "to-yellow-500");
+  submitBtn.classList.add("bg-emerald-600");
 
   form.reset();
   refreshDashboard();
@@ -1028,8 +1057,8 @@ form.addEventListener("submit", async (event) => {
 
   window.setTimeout(async () => {
     submitBtn.textContent = originalBtnText;
-    submitBtn.classList.remove("bg-green-600");
-    submitBtn.classList.add("from-indigo-500", "to-purple-600");
+    submitBtn.classList.remove("bg-emerald-600");
+    submitBtn.classList.add("from-yellow-600", "to-yellow-500");
     await prefillHackathonNameFromTab();
   }, 1500);
 });
@@ -1339,6 +1368,43 @@ function handleImport(event) {
   reader.readAsText(file);
 }
 
+async function handleClearClosed() {
+  const beforeCount = uiState.data.length;
+  if (!beforeCount) {
+    showToast("No hackathons to clear");
+    return;
+  }
+
+  const nextData = uiState.data.filter((item) => {
+    if (!hasValidDeadline(item.deadline)) {
+      return true;
+    }
+
+    const hours = getDiffHours(item.deadline);
+    return hours === null || hours > 0;
+  });
+
+  const removedCount = beforeCount - nextData.length;
+  if (removedCount <= 0) {
+    showToast("No closed hackathons found");
+    return;
+  }
+
+  const shouldClear = window.confirm(
+    `Clear ${removedCount} closed hackathon${removedCount === 1 ? "" : "s"}?`
+  );
+  if (!shouldClear) {
+    return;
+  }
+
+  uiState.data = nextData;
+  uiState.expandedId = null;
+
+  await persistData();
+  refreshDashboard();
+  showToast(`Cleared ${removedCount} closed hackathon${removedCount === 1 ? "" : "s"}`);
+}
+
 function debounce(func, wait) {
   let timeout;
   return function(...args) {
@@ -1355,6 +1421,7 @@ async function initializePopup() {
   if (exportBtn) exportBtn.addEventListener("click", handleExport);
   if (importBtn) importBtn.addEventListener("click", () => importFile.click());
   if (importFile) importFile.addEventListener("change", handleImport);
+  if (clearClosedBtn) clearClosedBtn.addEventListener("click", handleClearClosed);
 
   const searchInput = document.getElementById("search-input");
   if (searchInput) {

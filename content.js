@@ -1220,7 +1220,7 @@ function injectUi() {
       }
 
       .fab-visible .hacktrack-fab {
-        opacity: 0.65;
+        opacity: 0.75;
         transform: translateY(0) scale(1);
         pointer-events: auto;
       }
@@ -1233,42 +1233,56 @@ function injectUi() {
         position: fixed;
         right: 20px;
         bottom: var(--fab-bottom, 20px);
-        width: 60px;
-        height: 60px;
+        width: 64px;
+        height: 64px;
         z-index: 2147483646;
         cursor: pointer;
         user-select: none;
-        transition: transform 0.1s ease-in-out;
+        transition: transform 0.15s ease-in-out, opacity 0.3s ease;
       }
 
       .fab-base {
         position: absolute;
         inset: 0;
-        background-color: #020617; /* Navy 950 */
-        border-radius: 16px;
-        border: 2px solid #1e293b;
+        background-color: #0a0a0b;
+        border-radius: 18px;
+        border: 2px solid rgba(251, 191, 36, 0.3);
         padding-bottom: 6px;
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
-        transition: padding-bottom 0.1s ease-in-out;
+        box-shadow:
+          0 12px 30px rgba(0, 0, 0, 0.5),
+          0 0 40px rgba(251, 191, 36, 0.1);
+        transition: padding-bottom 0.1s ease-in-out, box-shadow 0.3s ease;
+      }
+
+      .hacktrack-fab:hover .fab-base {
+        border-color: rgba(251, 191, 36, 0.5);
+        box-shadow:
+          0 15px 40px rgba(0, 0, 0, 0.5),
+          0 0 60px rgba(251, 191, 36, 0.2);
       }
 
       .fab-top {
         height: 100%;
-        background: linear-gradient(135deg, #1e293b, #0f172a); /* Slate 800 to Slate 900 */
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
+        background: linear-gradient(135deg, #1a1a1c, #0f0f10);
+        border: 1px solid rgba(251, 191, 36, 0.15);
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         transform: translateY(-6px);
-        transition: transform 0.1s ease-in-out, background 0.2s ease;
+        transition: transform 0.1s ease-in-out, background 0.2s ease, border-color 0.3s ease;
       }
 
       .fab-top svg {
-        width: 28px;
-        height: 28px;
-        color: #fbbf24; /* Amber 400 (Gold) */
-        filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.35));
+        width: 30px;
+        height: 30px;
+        color: #fbbf24;
+        filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.5));
+        transition: filter 0.3s ease;
+      }
+
+      .hacktrack-fab:hover .fab-top svg {
+        filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.7));
       }
 
       .hacktrack-fab:active .fab-base {
@@ -1280,26 +1294,31 @@ function injectUi() {
       }
 
       .hacktrack-fab:hover .fab-top {
-        filter: brightness(1.1);
+        border-color: rgba(251, 191, 36, 0.3);
+        background: linear-gradient(135deg, #1f1f21, #141415);
       }
 
       .hacktrack-preview {
         position: fixed;
         right: 20px;
-        bottom: calc(var(--fab-bottom, 20px) + 66px);
-        width: 320px;
-        border-radius: 16px;
-        background: rgba(17, 24, 39, 0.96);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        bottom: calc(var(--fab-bottom, 20px) + 72px);
+        width: 340px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(20, 20, 22, 0.98), rgba(15, 15, 16, 0.95));
+        border: 1px solid rgba(251, 191, 36, 0.25);
         color: #f3f4f6;
-        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+        box-shadow:
+          0 30px 60px rgba(0, 0, 0, 0.5),
+          0 0 50px rgba(251, 191, 36, 0.08);
         z-index: 2147483647;
-        padding: 14px;
+        padding: 18px;
         font-family: Inter, Segoe UI, system-ui, sans-serif;
         opacity: 0;
-        transform: translateY(8px) scale(0.98);
+        transform: translateY(10px) scale(0.96);
         pointer-events: none;
-        transition: opacity 220ms ease, transform 220ms ease;
+        transition: opacity 250ms ease, transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
       }
 
       .hacktrack-preview.preview-open {
@@ -1310,88 +1329,114 @@ function injectUi() {
 
       .title {
         margin: 0;
-        font-size: 14px;
-        font-weight: 600;
+        font-size: 15px;
+        font-weight: 700;
         line-height: 1.4;
-        color: #ffffff;
+        background: linear-gradient(135deg, #fcd34d, #f59e0b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
 
       .row {
-        margin-top: 10px;
+        margin-top: 12px;
         font-size: 13px;
         color: #d1d5db;
         display: flex;
         justify-content: space-between;
         gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(251, 191, 36, 0.08);
       }
 
       .label {
-        color: #9ca3af;
+        color: rgba(251, 191, 36, 0.7);
+        font-weight: 500;
       }
 
       .value {
         text-align: right;
         max-width: 180px;
+        color: #e5e7eb;
       }
 
       .countdown-chip {
-        margin-top: 12px;
+        margin-top: 14px;
         display: inline-block;
         border-radius: 999px;
-        padding: 4px 10px;
+        padding: 6px 14px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 700;
         border: 1px solid transparent;
+        letter-spacing: 0.02em;
       }
 
       .tone-green {
         color: #86efac;
         background: rgba(16, 185, 129, 0.15);
         border-color: rgba(16, 185, 129, 0.38);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
       }
 
       .tone-yellow {
-        color: #fde68a;
-        background: rgba(245, 158, 11, 0.15);
-        border-color: rgba(245, 158, 11, 0.38);
+        color: #fcd34d;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
+        border-color: rgba(251, 191, 36, 0.45);
+        box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
       }
 
       .tone-red {
         color: #fca5a5;
         background: rgba(239, 68, 68, 0.15);
         border-color: rgba(239, 68, 68, 0.4);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
       }
 
       .actions {
-        margin-top: 14px;
+        margin-top: 18px;
         display: flex;
         justify-content: flex-end;
-        gap: 8px;
+        gap: 10px;
       }
 
       .btn {
         border: 0;
-        border-radius: 10px;
-        padding: 8px 12px;
+        border-radius: 12px;
+        padding: 10px 16px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
-        transition: transform 160ms ease, filter 160ms ease;
+        transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
       }
 
       .btn:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.06);
+        transform: translateY(-2px);
+      }
+
+      .btn:active {
+        transform: scale(0.98) translateY(0);
       }
 
       .btn-cancel {
-        background: #1f2937;
+        background: rgba(30, 30, 32, 0.9);
         color: #d1d5db;
+        border: 1px solid rgba(100, 100, 105, 0.3);
+      }
+
+      .btn-cancel:hover {
+        background: rgba(40, 40, 42, 0.9);
+        border-color: rgba(251, 191, 36, 0.3);
       }
 
       .btn-save {
-        background: linear-gradient(135deg, #4f46e5, #8b5cf6);
-        color: white;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #0a0a0b;
+        box-shadow: 0 4px 20px rgba(251, 191, 36, 0.35);
+      }
+
+      .btn-save:hover {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        box-shadow: 0 6px 25px rgba(251, 191, 36, 0.45);
       }
 
       .hidden {
@@ -1404,12 +1449,14 @@ function injectUi() {
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 16px;
-        background: rgba(5, 150, 105, 0.96);
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.95), rgba(217, 119, 6, 0.95));
         z-index: 20;
-        color: #ffffff;
+        color: #0a0a0b;
         font-size: 18px;
-        font-weight: 700;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        box-shadow: 0 0 40px rgba(251, 191, 36, 0.4);
       }
     </style>
 
@@ -1422,10 +1469,10 @@ function injectUi() {
     </div>
 
     <section class="hacktrack-preview" aria-live="polite">
-      <div id="save-success-msg" class="save-success-overlay hidden">Saved! ✓</div>
+      <div id="save-success-msg" class="save-success-overlay hidden">Saved!</div>
       <p class="title" data-preview="title"></p>
-      <div class="row" data-row="deadline"><span class="label">📅 Deadline</span><span class="value" data-preview="deadline"></span></div>
-      <div class="row" data-row="prize"><span class="label">💰 Prize Pool</span><span class="value" data-preview="prize"></span></div>
+      <div class="row" data-row="deadline"><span class="label">Deadline</span><span class="value" data-preview="deadline"></span></div>
+      <div class="row" data-row="prize"><span class="label">Prize Pool</span><span class="value" data-preview="prize"></span></div>
       <span class="countdown-chip" data-preview="countdown"></span>
       <div class="actions">
         <button type="button" class="btn btn-cancel" data-action="cancel">Cancel</button>
