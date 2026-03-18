@@ -317,6 +317,129 @@ function parsePrizeValue(prizeText) {
   return value;
 }
 
+function buildShareSummary(hackathon) {
+  const countdown = getCountdown(hackathon.deadline).label;
+  const status = getStatus(hackathon.deadline).label;
+  const registration = hackathon.registered ? "Registered" : "Not registered";
+  const tags = Array.isArray(hackathon.tags) && hackathon.tags.length
+    ? `\n🏷️ Tags: ${hackathon.tags.slice(0, 5).join(", ")}`
+    : "";
+  const link = hackathon.sourceUrl ? `\n🔗 ${hackathon.sourceUrl}` : "";
+
+  return [
+    `🚀 ${hackathon.name}`,
+    `📅 Deadline: ${formatDeadline(hackathon.deadline)}`,
+    `💰 Prize: ${hackathon.prize || "Not specified"}`,
+    `📌 Status: ${status} (${countdown})`,
+    `✅ ${registration}`
+  ].join("\n") + tags + link + "\n\nShared via HackTrack";
+}
+
+function drawRoundedRect(context, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + width, y, x + width, y + height, r);
+  context.arcTo(x + width, y + height, x, y + height, r);
+  context.arcTo(x, y + height, x, y, r);
+  context.arcTo(x, y, x + width, y, r);
+  context.closePath();
+}
+
+function wrapCanvasText(context, text, maxWidth) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  if (!words.length) {
+    return [""];
+  }
+
+  const lines = [];
+  let currentLine = words[0];
+
+  for (let index = 1; index < words.length; index += 1) {
+    const candidate = `${currentLine} ${words[index]}`;
+    if (context.measureText(candidate).width <= maxWidth) {
+      currentLine = candidate;
+    } else {
+      lines.push(currentLine);
+      currentLine = words[index];
+    }
+  }
+
+  lines.push(currentLine);
+  return lines;
+}
+
+function downloadShareSnapshot(hackathon) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 630;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return false;
+  }
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  const backgroundGradient = context.createLinearGradient(0, 0, width, height);
+  backgroundGradient.addColorStop(0, "#f4efe8");
+  backgroundGradient.addColorStop(0.45, "#ece2c7");
+  backgroundGradient.addColorStop(0.75, "#e7aaaa");
+  backgroundGradient.addColorStop(1, "#d8747b");
+  context.fillStyle = backgroundGradient;
+  context.fillRect(0, 0, width, height);
+
+  drawRoundedRect(context, 46, 40, width - 92, height - 80, 32);
+  context.fillStyle = "rgba(17, 16, 18, 0.86)";
+  context.fill();
+
+  context.fillStyle = "#ece2c7";
+  context.font = "700 30px Inter, Segoe UI, sans-serif";
+  context.fillText("HackTrack Snapshot", 84, 110);
+
+  context.font = "800 54px 'Plus Jakarta Sans', Inter, Segoe UI, sans-serif";
+  context.fillStyle = "#e7aaaa";
+  const titleLines = wrapCanvasText(context, hackathon.name || "Untitled Hackathon", width - 180).slice(0, 2);
+  titleLines.forEach((line, index) => {
+    context.fillText(line, 84, 190 + index * 62);
+  });
+
+  const countdown = getCountdown(hackathon.deadline).label;
+  const status = getStatus(hackathon.deadline).label;
+  const detailRows = [
+    `Deadline: ${formatDeadline(hackathon.deadline)}`,
+    `Prize: ${hackathon.prize || "Not specified"}`,
+    `Status: ${status} (${countdown})`,
+    `Registered: ${hackathon.registered ? "Yes" : "No"}`
+  ];
+
+  context.font = "600 27px Inter, Segoe UI, sans-serif";
+  context.fillStyle = "#ece2c7";
+  detailRows.forEach((row, index) => {
+    context.fillText(row, 84, 365 + index * 46);
+  });
+
+  if (hackathon.sourceUrl) {
+    context.font = "500 21px Inter, Segoe UI, sans-serif";
+    context.fillStyle = "#d8747b";
+    const shortenedUrl = hackathon.sourceUrl.length > 88
+      ? `${hackathon.sourceUrl.slice(0, 85)}...`
+      : hackathon.sourceUrl;
+    context.fillText(shortenedUrl, 84, 565);
+  }
+
+  const safeName = String(hackathon.name || "hackathon")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "hackathon";
+  const downloadLink = document.createElement("a");
+  downloadLink.href = canvas.toDataURL("image/png");
+  downloadLink.download = `hacktrack-${safeName}-snapshot.png`;
+  downloadLink.click();
+  return true;
+}
+
 function getHackathons() {
   return new Promise((resolve) => {
     if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
@@ -576,7 +699,14 @@ function buildCard(hackathon, nextUpcomingKey) {
     registerLinkButton.disabled = true;
   }
 
-  actions.append(editButton, registerButton, registerLinkButton);
+  const shareButton = document.createElement("button");
+  shareButton.type = "button";
+  shareButton.dataset.action = "share-snapshot";
+  shareButton.className =
+    "ui-button rounded bg-gray-800/80 border border-yellow-500/30 px-2 py-1 text-[10px] font-semibold text-yellow-300 hover:bg-yellow-500/10 transition-all";
+  shareButton.textContent = "Share";
+
+  actions.append(editButton, registerButton, shareButton, registerLinkButton);
 
   const inlineEdit = document.createElement("div");
   inlineEdit.dataset.role = "inline-edit";
@@ -1179,6 +1309,34 @@ list.addEventListener("click", async (event) => {
 
     chrome.tabs.create({ url: sourceUrl });
     showToast("Opening registration page");
+    return;
+  }
+
+  if (action === "share-snapshot") {
+    const hackathon = uiState.data[index];
+    const summaryText = buildShareSummary(hackathon);
+
+    let copiedText = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(summaryText);
+        copiedText = true;
+      }
+    } catch (error) {
+      copiedText = false;
+    }
+
+    const downloadedImage = downloadShareSnapshot(hackathon);
+
+    if (downloadedImage && copiedText) {
+      showToast("Snapshot downloaded + summary copied");
+    } else if (downloadedImage) {
+      showToast("Snapshot downloaded");
+    } else if (copiedText) {
+      showToast("Summary copied");
+    } else {
+      showToast("Unable to share snapshot");
+    }
     return;
   }
 
