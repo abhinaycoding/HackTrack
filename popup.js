@@ -189,7 +189,7 @@ function showToast(message) {
 }
 
 function fireConfetti() {
-  const colors = ['#fbbf24', '#f59e0b', '#d97706', '#fcd34d', '#fde68a'];
+  const colors = ['#ece2c7', '#e7aaaa', '#df8f93', '#d8747b', '#c9636a'];
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.inset = '0';

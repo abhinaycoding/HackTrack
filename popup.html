@@ -26,24 +26,102 @@
         --font-body: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         --font-display: "Plus Jakarta Sans", "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-        /* Gold Color Palette */
-        --gold-50: #fffbeb;
-        --gold-100: #fef3c7;
-        --gold-200: #fde68a;
-        --gold-300: #fcd34d;
-        --gold-400: #fbbf24;
-        --gold-500: #f59e0b;
-        --gold-600: #d97706;
-        --gold-700: #b45309;
-        --gold-800: #92400e;
-        --gold-900: #78350f;
+        /* Warm Rose Palette */
+        --gold-50: #f4efe8;
+        --gold-100: #ece2c7;
+        --gold-200: #e7ccb6;
+        --gold-300: #e7aaaa;
+        --gold-400: #df8f93;
+        --gold-500: #d8747b;
+        --gold-600: #c9636a;
+        --gold-700: #b5535b;
+        --gold-800: #9a434a;
+        --gold-900: #7f343b;
+
+        --accent-rgb: 216, 116, 123;
+        --accent-strong-rgb: 201, 99, 106;
 
         /* Dark Base */
-        --dark-950: #0a0a0b;
-        --dark-900: #0f0f10;
-        --dark-800: #151516;
-        --dark-700: #1c1c1e;
-        --dark-600: #252528;
+        --dark-950: #111012;
+        --dark-900: #161518;
+        --dark-800: #1f1c20;
+        --dark-700: #28242a;
+        --dark-600: #322d34;
+      }
+
+      /* Tailwind Accent Remap (yellow/amber -> warm rose) */
+      .text-yellow-300,
+      .text-yellow-400,
+      .text-yellow-500,
+      .hover\:text-yellow-300:hover,
+      .hover\:text-yellow-400:hover,
+      .group-hover\/expand\:text-yellow-400,
+      .group-hover\/expand\:text-yellow-400:hover {
+        color: var(--gold-400) !important;
+      }
+
+      .text-yellow-500\/70 {
+        color: rgba(var(--accent-rgb), 0.7) !important;
+      }
+
+      .text-yellow-500\/60 {
+        color: rgba(var(--accent-rgb), 0.6) !important;
+      }
+
+      .border-yellow-500\/10,
+      .border-yellow-500\/15,
+      .border-yellow-500\/20,
+      .border-yellow-500\/25,
+      .border-yellow-500\/30,
+      .border-yellow-500\/35,
+      .border-yellow-500\/40,
+      .border-yellow-500\/50,
+      .hover\:border-yellow-500\/30:hover,
+      .hover\:border-yellow-500:hover,
+      .focus\:border-yellow-500:focus {
+        border-color: rgba(var(--accent-rgb), 0.45) !important;
+      }
+
+      .bg-yellow-500\/5,
+      .bg-yellow-500\/10,
+      .bg-yellow-500\/15,
+      .bg-yellow-500\/20,
+      .bg-yellow-500\/25,
+      .bg-yellow-500\/30,
+      .hover\:bg-yellow-500\/5:hover,
+      .hover\:bg-yellow-500\/10:hover,
+      .hover\:bg-yellow-500\/25:hover,
+      .hover\:bg-yellow-500\/30:hover {
+        background-color: rgba(var(--accent-rgb), 0.18) !important;
+      }
+
+      .from-yellow-500,
+      .from-yellow-600 {
+        --tw-gradient-from: rgba(var(--accent-strong-rgb), 1) var(--tw-gradient-from-position) !important;
+        --tw-gradient-to: rgba(var(--accent-strong-rgb), 0) var(--tw-gradient-to-position) !important;
+        --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+      }
+
+      .to-yellow-400,
+      .to-yellow-500,
+      .to-amber-500,
+      .to-amber-600 {
+        --tw-gradient-to: rgba(var(--accent-rgb), 1) var(--tw-gradient-to-position) !important;
+      }
+
+      .text-red-300,
+      .text-red-400,
+      .hover\:text-red-400:hover {
+        color: var(--gold-500) !important;
+      }
+
+      .border-red-400\/40 {
+        border-color: rgba(var(--accent-strong-rgb), 0.45) !important;
+      }
+
+      .bg-red-500\/20,
+      .hover\:bg-red-500\/10:hover {
+        background-color: rgba(var(--accent-strong-rgb), 0.2) !important;
       }
 
       body {
@@ -398,30 +476,30 @@
       }
 
       .status-urgent {
-        border: 1px solid rgba(251, 191, 36, 0.5);
-        background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.05));
+        border: 1px solid rgba(var(--accent-rgb), 0.55);
+        background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.25), rgba(var(--accent-rgb), 0.08));
         color: var(--gold-400);
-        box-shadow: 0 0 20px rgba(251, 191, 36, 0.15);
+        box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.2);
         animation: urgent-pulse 2s ease-in-out infinite;
       }
 
       @keyframes urgent-pulse {
-        0%, 100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.15); }
-        50% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.3); }
+        0%, 100% { box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.2); }
+        50% { box-shadow: 0 0 30px rgba(var(--accent-rgb), 0.35); }
       }
 
       .status-missed {
-        border: 1px solid rgba(239, 68, 68, 0.4);
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
-        color: #f87171;
-        box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(var(--accent-strong-rgb), 0.55);
+        background: linear-gradient(135deg, rgba(var(--accent-strong-rgb), 0.25), rgba(var(--accent-strong-rgb), 0.08));
+        color: var(--gold-500);
+        box-shadow: 0 0 20px rgba(var(--accent-strong-rgb), 0.2);
       }
 
       .next-upcoming-highlight {
         border-color: var(--gold-500) !important;
         box-shadow:
           0 0 0 1px var(--gold-500),
-          0 0 40px rgba(251, 191, 36, 0.2),
+          0 0 40px rgba(var(--accent-rgb), 0.25),
           0 20px 40px rgba(0, 0, 0, 0.3) !important;
       }
 
